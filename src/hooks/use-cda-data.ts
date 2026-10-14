@@ -65,13 +65,14 @@ export function useCandles(symbol: string, interval: ChartInterval) {
 }
 
 /** 1-minute taker flow for the CVD pane (Pro). Retries later on 503 warm-up. */
-export function useTradeFlow(symbol: string, minutes = 1440) {
+export function useTradeFlow(symbol: string, minutes = 1440, enabled = true) {
   const sec = useSettings((s) => s.refresh.candlesSec);
   return useCdaQuery({
     key: ["hyperliquid/trade-flow", symbol, minutes],
     fn: (signal) => getTradeFlow(symbol, minutes, { signal }),
     requires: "pro",
     refetchMs: Math.max(60, sec) * 1000,
+    enabled,
   });
 }
 
