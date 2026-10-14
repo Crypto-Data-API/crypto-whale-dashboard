@@ -32,7 +32,8 @@ export interface PriceChartProps {
   className?: string;
 }
 
-const VISIBLE_BARS = 160;
+/** Default viewport: the most recent N days, whatever the interval. */
+const VISIBLE_DAYS = 4;
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
@@ -175,7 +176,12 @@ export default function PriceChart({ bars, groups, cvd, resetKey, className }: P
     }
     if (bars.length && framedKey.current !== resetKey) {
       framedKey.current = resetKey;
-      chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, bars.length - VISIBLE_BARS), to: bars.length + 4 });
+      const cutoff = (bars[bars.length - 1].time as number) - VISIBLE_DAYS * 86_400;
+      let first = bars.findIndex((b) => (b.time as number) >= cutoff);
+      if (first < 0) first = 0;
+      // Never frame fewer than 20 bars (e.g. on the 1d interval).
+      first = Math.min(first, Math.max(0, bars.length - 20));
+      chart.timeScale().setVisibleLogicalRange({ from: first, to: bars.length + 4 });
     }
   }, [bars, resetKey]);
 
