@@ -279,7 +279,11 @@ function MarkerTooltip({ group }: { group: MarkerGroup }) {
       ? group.dir === "buy"
         ? "Whale buy-side flow"
         : "Whale sell-side flow"
-      : group.source === "liquidations"
+      : group.source === "trades"
+        ? group.dir === "buy"
+          ? "Big taker buying"
+          : "Big taker selling"
+        : group.source === "liquidations"
         ? `${group.dir === "long" ? "Long" : "Short"} liquidations`
         : group.dir === "inflow"
           ? "Exchange inflow"

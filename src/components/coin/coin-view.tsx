@@ -15,7 +15,7 @@ import { fmtClock, fmtPct, fmtPrice, fmtUsd, relTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/stores/settings";
 import { useStream } from "@/stores/stream";
-import { MARKER_SOURCES, collectMarkerItems, cvdByBar, groupMarkers, type MarkerItem, type MarkerSource } from "./markers";
+import { MARKER_SOURCES, collectMarkerItems, cvdByBar, groupMarkers, tradeFlowItems, type MarkerItem, type MarkerSource } from "./markers";
 import { FundingOiCard, NewsCard, QuantCard, WhaleSummaryCard } from "./side-cards";
 
 const PriceChart = dynamic(() => import("./price-chart"), {
@@ -34,6 +34,14 @@ function Swatch({ source }: { source: MarkerSource }) {
       <span className="flex items-center gap-px" aria-hidden>
         <span className="size-0 border-x-[4px] border-b-[7px] border-x-transparent border-b-long" />
         <span className="size-0 border-x-[4px] border-t-[7px] border-x-transparent border-t-short" />
+      </span>
+    );
+  }
+  if (source === "trades") {
+    return (
+      <span className="flex gap-px" aria-hidden>
+        <span className="size-2 rounded-full bg-long" />
+        <span className="size-2 rounded-full bg-short" />
       </span>
     );
   }
@@ -74,6 +82,7 @@ function sentence(s: string): string {
 
 function activityLabel(it: MarkerItem): { title: string; tone: "long" | "short" | "liq" } {
   if (it.source === "positions") return { title: it.dir === "buy" ? "Whale buy" : "Whale sell", tone: it.dir === "buy" ? "long" : "short" };
+  if (it.source === "trades") return { title: it.dir === "buy" ? "Big taker buy" : "Big taker sell", tone: it.dir === "buy" ? "long" : "short" };
   if (it.source === "liquidations") return { title: `${it.dir === "long" ? "Long" : "Short"} liquidation`, tone: "liq" };
   return { title: it.dir === "inflow" ? "Exchange inflow" : "Exchange outflow", tone: it.dir === "outflow" ? "long" : "short" };
 }
@@ -86,7 +95,7 @@ export function CoinView({ symbol }: { symbol: string }) {
   const cvdSupported = intervalSec <= 3600;
 
   const candles = useCandles(symbol, interval);
-  const flow = useTradeFlow(symbol, 1440, cvdSupported);
+  const flow = useTradeFlow(symbol, 1440, true);
   const recent = useCoinRecentEvents(symbol);
   const spikes = useSpikeAlerts(1_000_000);
   const now = useNow(15_000);
@@ -94,19 +103,22 @@ export function CoinView({ symbol }: { symbol: string }) {
     useShallow((s) => s.events.filter((e) => MARKER_EVENT_TYPES.has(e.type) && symbolMatches(e.symbol, symbol))),
   );
 
-  const [enabled, setEnabled] = useState<Record<MarkerSource, boolean>>({ positions: true, liquidations: true, flows: true });
+  const [enabled, setEnabled] = useState<Record<MarkerSource, boolean>>({ positions: true, trades: true, liquidations: true, flows: true });
   const [minUsd, setMinUsd] = useState(10_000);
 
   const bars = candles.data?.bars ?? EMPTY_BARS;
   const recentEvents = recent.data?.events ?? EMPTY_EVENTS;
 
   const items = useMemo(
-    () => collectMarkerItems(symbol, recentEvents.concat(liveEvents), spikes.data ?? []),
-    [symbol, recentEvents, liveEvents, spikes.data],
+    () =>
+      collectMarkerItems(symbol, recentEvents.concat(liveEvents), spikes.data ?? [])
+        .concat(tradeFlowItems(symbol, flow.data?.data ?? []))
+        .sort((a, b) => a.ts - b.ts),
+    [symbol, recentEvents, liveEvents, spikes.data, flow.data],
   );
   const groups = useMemo(() => groupMarkers(items, bars, intervalSec, enabled, minUsd), [items, bars, intervalSec, enabled, minUsd]);
   const counts = useMemo(() => {
-    const c: Record<MarkerSource, number> = { positions: 0, liquidations: 0, flows: 0 };
+    const c: Record<MarkerSource, number> = { positions: 0, trades: 0, liquidations: 0, flows: 0 };
     for (const it of items) if (it.usd >= minUsd) c[it.source]++;
     return c;
   }, [items, minUsd]);
@@ -207,7 +219,7 @@ export function CoinView({ symbol }: { symbol: string }) {
 
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
                 <span>
-                  Arrows: whale position changes by net flow (buy = opening long or closing short). Circles: liquidations. Squares: exchange
+                  Arrows: whale position changes by net flow (buy = opening long or closing short). Green / coral dots: minutes of big taker buying / selling (last 24h). Amber circles: liquidations. Squares: exchange
                   inflows (coral) and outflows (green).
                 </span>
                 <span>

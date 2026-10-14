@@ -4,10 +4,11 @@ import { positionFlow, symbolMatches } from "@/lib/events";
 import { fmtUsd, shortAddress } from "@/lib/format";
 import { PALETTE } from "@/lib/palette";
 
-export type MarkerSource = "positions" | "liquidations" | "flows";
+export type MarkerSource = "positions" | "trades" | "liquidations" | "flows";
 
 export const MARKER_SOURCES: { id: MarkerSource; label: string; hint: string }[] = [
   { id: "positions", label: "Whale buys / sells", hint: "Hyperliquid whale position changes (stream)" },
+  { id: "trades", label: "Big taker buys / sells", hint: "Minutes with large aggressive fills on Hyperliquid (trade flow, Pro)" },
   { id: "liquidations", label: "Liquidations", hint: "Liquidations across venues (stream)" },
   { id: "flows", label: "Exchange flows", hint: "Large CEX wallet inflows / outflows (on-chain)" },
 ];
@@ -107,6 +108,41 @@ export function collectMarkerItems(symbol: string, events: CdaEvent[], spikes: E
   return out.sort((a, b) => a.ts - b.ts);
 }
 
+/** Minimum dominant-side notional for a 1-minute bucket to count as a big trade. */
+export const BIG_TRADE_MIN_USD = 10_000;
+
+/**
+ * Big aggressive buys / sells from 1-minute taker flow: a bucket qualifies when
+ * the dominant side's notional is at least BIG_TRADE_MIN_USD. Direction follows
+ * the larger side; size is that side's notional.
+ */
+export function tradeFlowItems(symbol: string, flow: TradeFlowBucket[]): MarkerItem[] {
+  const out: MarkerItem[] = [];
+  for (const b of flow) {
+    if (b.partial) continue;
+    const buy = b.buyNotional > b.sellNotional;
+    const usd = Math.max(b.buyNotional, b.sellNotional);
+    if (!(usd >= BIG_TRADE_MIN_USD)) continue;
+    const detail = [
+      b.maxFillUsd ? `largest fill ${fmtUsd(b.maxFillUsd)}` : null,
+      b.nTrades ? `${b.nTrades} trades` : null,
+      b.vwap ? `vwap ${b.vwap}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    out.push({
+      key: `f${b.time}`,
+      source: "trades",
+      dir: buy ? "buy" : "sell",
+      ts: b.time,
+      usd,
+      label: `${buy ? "taker buying" : "taker selling"} ${symbol}`,
+      detail,
+    });
+  }
+  return out;
+}
+
 /** Largest bar time <= tsSec (binary search). Null if outside the bar range. */
 export function snapToBar(bars: Candle[], tsSec: number, intervalSec: number): number | null {
   if (!bars.length) return null;
@@ -169,6 +205,18 @@ export function toSeriesMarkers(groups: MarkerGroup[]): SeriesMarker<UTCTimestam
         color: buy ? PALETTE.long : PALETTE.short,
         text: `${fmtUsd(g.usd)}${count}`,
         size,
+      };
+    }
+    if (g.source === "trades") {
+      const buy = g.dir === "buy";
+      return {
+        id: g.id,
+        time,
+        position: buy ? "belowBar" : "aboveBar",
+        shape: "circle",
+        color: buy ? PALETTE.long : PALETTE.short,
+        text: g.usd >= 250_000 ? fmtUsd(g.usd) : undefined,
+        size: Math.max(0.7, size * 0.9),
       };
     }
     if (g.source === "liquidations") {
