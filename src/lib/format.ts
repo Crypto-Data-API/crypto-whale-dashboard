@@ -4,17 +4,19 @@
  */
 
 const DASH = "—";
+/** Typographic minus (U+2212) used for negative numbers, as in the design. */
+export const MINUS = "−";
 
 function isNum(v: unknown): v is number {
   return typeof v === "number" && Number.isFinite(v);
 }
 
-/** Compact USD: $1.2B, $340M, $85K, $950, -$1.2M. */
+/** Compact USD: $1.2B, $340M, $85K, $950, −$1.2M. */
 export function fmtUsd(value: number | null | undefined, opts: { digits?: number; sign?: boolean } = {}): string {
   if (!isNum(value)) return DASH;
   const { digits, sign = false } = opts;
   const abs = Math.abs(value);
-  const prefix = value < 0 ? "-" : sign && value > 0 ? "+" : "";
+  const prefix = value < 0 ? MINUS : sign && value > 0 ? "+" : "";
   const units: [number, string][] = [
     [1e12, "T"],
     [1e9, "B"],
@@ -36,7 +38,7 @@ export function fmtUsd(value: number | null | undefined, opts: { digits?: number
 export function fmtCompact(value: number | null | undefined, digits = 1): string {
   if (!isNum(value)) return DASH;
   const abs = Math.abs(value);
-  const prefix = value < 0 ? "-" : "";
+  const prefix = value < 0 ? MINUS : "";
   if (abs >= 1e9) return `${prefix}${trimZeros((abs / 1e9).toFixed(digits))}B`;
   if (abs >= 1e6) return `${prefix}${trimZeros((abs / 1e6).toFixed(digits))}M`;
   if (abs >= 1e3) return `${prefix}${trimZeros((abs / 1e3).toFixed(digits))}K`;
@@ -53,8 +55,11 @@ export function fmtInt(value: number | null | undefined): string {
 export function fmtPct(value: number | null | undefined, opts: { digits?: number; sign?: boolean } = {}): string {
   if (!isNum(value)) return DASH;
   const { digits = 1, sign = false } = opts;
-  const prefix = sign && value > 0 ? "+" : "";
-  return `${prefix}${value.toFixed(digits)}%`;
+  const fixed = value.toFixed(digits);
+  const negative = fixed.startsWith("-") && Number(fixed) !== 0;
+  const body = fixed.replace(/^-/, "");
+  const prefix = negative ? MINUS : sign && value > 0 && Number(fixed) !== 0 ? "+" : "";
+  return `${prefix}${body}%`;
 }
 
 /** Percent where the input is a fraction (0.452 -> "45.2%"). */

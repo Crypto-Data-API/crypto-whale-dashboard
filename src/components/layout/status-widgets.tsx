@@ -1,114 +1,29 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAccess } from "@/hooks/use-access";
 import { useNow } from "@/hooks/use-now";
 import { TIER_LABEL } from "@/lib/cda/types";
 import { fmtInt, relTime } from "@/lib/format";
+import { DECK } from "@/lib/palette";
 import { cn } from "@/lib/utils";
 import { useRateLimit } from "@/stores/rate-limit";
 import { useStream, type StreamStatus } from "@/stores/stream";
 
-export function TierBadge() {
-  const access = useAccess();
-  let label = "…";
-  let tone = "border-border text-muted-foreground";
-  let hint = "Checking your API key";
-  if (!access.hydrated) {
-    label = "…";
-  } else if (access.source === "sample") {
-    label = access.demoMode ? "Demo" : "Sample data";
-    tone = "border-liq/40 text-liq";
-    hint = access.demoMode
-      ? "Demo mode: bundled sample snapshots and the 30-minute delayed feed"
-      : "No API key yet: showing bundled sample snapshots. Add your CryptoDataApi key in Settings for live data.";
-  } else if (access.demoMode && access.source === "none") {
-    label = "Demo";
-    tone = "border-liq/40 text-liq";
-    hint = "Demo mode: the 30-minute delayed feed only";
-  } else if (access.source === "none") {
-    label = "No key";
-    tone = "border-border text-muted-foreground";
-    hint = "Add your CryptoDataApi key in Settings";
-  } else if (access.authError?.isAuth) {
-    label = "Invalid key";
-    tone = "border-short/50 text-short";
-    hint = access.source === "server" ? "The API rejected the server key (CDA_API_KEY)" : "The API rejected this key";
-  } else if (access.tier) {
-    label = access.tier === "pro_plus" ? "Pro+" : TIER_LABEL[access.tier];
-    tone = access.tier === "free" ? "border-border text-foreground" : "border-transfer/50 text-transfer";
-    hint =
-      access.source === "server"
-        ? `Using the server key (CDA_API_KEY), ${TIER_LABEL[access.tier]} tier. Add your own key in Settings to use it instead.`
-        : `${TIER_LABEL[access.tier]} key${access.keyInfo?.keyPrefix ? ` · ${access.keyInfo.keyPrefix}…` : ""}`;
-  }
-  const note = !access.hydrated ? null : access.source === "server" ? "Using server key" : access.source === "sample" ? "Add a key for live data" : null;
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Link href="/settings" className="flex items-center gap-1.5">
-          {note && <span className="hidden text-[11px] whitespace-nowrap text-muted-foreground sm:inline">{note}</span>}
-          <span className={cn("inline-flex h-6 items-center rounded-full border px-2 text-[11px] font-medium whitespace-nowrap", tone)}>
-            {label}
-          </span>
-        </Link>
-      </TooltipTrigger>
-      <TooltipContent>{hint}</TooltipContent>
-    </Tooltip>
-  );
-}
-
-export function RateLimitMeter() {
-  const rl = useRateLimit();
-  const access = useAccess();
-  const limitDay = rl.limitDay ?? access.keyInfo?.dailyLimit ?? null;
-  const remainingDay = rl.remainingDay ?? (access.keyInfo?.dailyLimit != null && access.keyInfo.requestsToday != null ? access.keyInfo.dailyLimit - access.keyInfo.requestsToday : null);
-  if (limitDay === null || remainingDay === null) return null;
-  const used = Math.max(0, limitDay - remainingDay);
-  const pct = limitDay > 0 ? Math.min(100, (used / limitDay) * 100) : 0;
-  const barTone = pct > 90 ? "bg-short" : pct > 70 ? "bg-liq" : "bg-transfer";
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div className="hidden min-w-28 flex-col gap-1 sm:flex" aria-label={`API usage ${fmtInt(used)} of ${fmtInt(limitDay)} requests today`}>
-          <div className="flex items-baseline justify-between gap-2 text-[11px] leading-none text-muted-foreground">
-            <span>API today</span>
-            <span className="tabular text-foreground">
-              {fmtInt(used)}
-              <span className="text-muted-foreground">/{fmtInt(limitDay)}</span>
-            </span>
-          </div>
-          <div className="h-1 overflow-hidden rounded-full bg-muted">
-            <div className={cn("h-full rounded-full", barTone)} style={{ width: `${Math.max(2, pct)}%` }} />
-          </div>
-        </div>
-      </TooltipTrigger>
-      <TooltipContent className="text-xs">
-        <div>
-          Daily: {fmtInt(remainingDay)} of {fmtInt(limitDay)} remaining
-        </div>
-        {rl.limitMinute !== null && rl.remainingMinute !== null && (
-          <div>
-            This minute: {fmtInt(rl.remainingMinute)} of {fmtInt(rl.limitMinute)} remaining
-          </div>
-        )}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
-const STATUS_META: Record<StreamStatus, { label: string; dot: string; pulse?: boolean }> = {
-  idle: { label: "Idle", dot: "bg-muted-foreground" },
-  off: { label: "Off", dot: "bg-muted-foreground" },
-  connecting: { label: "Connecting", dot: "bg-liq", pulse: true },
-  reconnecting: { label: "Reconnecting", dot: "bg-liq", pulse: true },
-  live: { label: "Live", dot: "bg-long", pulse: true },
-  delayed: { label: "Delayed 30m", dot: "bg-liq" },
-  error: { label: "Stream error", dot: "bg-short" },
+const STATUS_META: Record<StreamStatus, { label: string; color: string; pulse?: boolean; hint: string }> = {
+  live: { label: "LIVE", color: DECK.long, pulse: true, hint: "Live" },
+  delayed: { label: "DELAYED", color: DECK.amber, hint: "Delayed 30 minutes" },
+  connecting: { label: "CONNECTING", color: DECK.amber, hint: "Connecting" },
+  reconnecting: { label: "RECONNECTING", color: DECK.amber, hint: "Reconnecting" },
+  error: { label: "ERROR", color: DECK.short, hint: "Stream error" },
+  off: { label: "OFFLINE", color: DECK.short, hint: "Off" },
+  idle: { label: "IDLE", color: DECK.dim, hint: "Idle" },
 };
 
-export function StreamStatusDot() {
+/** Pulsing stream status: LIVE (cyan), DELAYED (amber), OFFLINE / ERROR (pink). */
+export function LiveIndicator() {
   const status = useStream((s) => s.status);
   const message = useStream((s) => s.message);
   const count = useStream((s) => s.events.length);
@@ -118,21 +33,149 @@ export function StreamStatusDot() {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Link href="/alerts" className="flex items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground hover:text-foreground">
-          <span className="relative flex size-2">
-            {meta.pulse && <span className={cn("absolute inline-flex size-full animate-ping rounded-full opacity-60", meta.dot)} />}
-            <span className={cn("relative inline-flex size-2 rounded-full", meta.dot)} />
-          </span>
-          <span className="hidden lg:inline">{meta.label}</span>
+        <Link
+          href="/alerts"
+          className="flex items-center gap-2 font-mono text-[11px] tracking-[.08em] whitespace-nowrap"
+          style={{ color: meta.color }}
+        >
+          <span
+            className={cn("inline-block size-2 shrink-0 rounded-full", meta.pulse && "live-pulse")}
+            style={{ background: meta.color, boxShadow: meta.pulse ? undefined : `0 0 8px ${meta.color}` }}
+            aria-hidden
+          />
+          {meta.label}
         </Link>
       </TooltipTrigger>
       <TooltipContent className="max-w-64 text-xs">
-        <div className="font-medium">Event stream: {meta.label}</div>
+        <div className="font-medium">Event stream: {meta.hint}</div>
         {message && <div className="text-muted-foreground">{message}</div>}
         <div className="text-muted-foreground">
           {fmtInt(count)} events buffered · last activity {relTime(lastActivityAt, now)}
         </div>
       </TooltipContent>
     </Tooltip>
+  );
+}
+
+const PILL = "inline-flex items-center rounded-full px-[9px] py-[3px] font-display text-[10.5px] font-bold tracking-[.06em] whitespace-nowrap";
+
+/** Tier / key-source badge: PRO+ (gradient), PRO, FREE, SAMPLE, DEMO, NO KEY, INVALID. */
+export function TierPill() {
+  const access = useAccess();
+  let label = "…";
+  let cls = `${PILL} border border-iris/20 text-ink-dim`;
+  let style: CSSProperties | undefined;
+  let hint = "Checking your API key";
+  if (!access.hydrated) {
+    // keep the placeholder
+  } else if (access.source === "sample") {
+    label = access.demoMode ? "DEMO" : "SAMPLE";
+    cls = `${PILL} border border-gold/50 bg-gold/10 text-gold`;
+    hint = access.demoMode
+      ? "Demo mode: bundled sample snapshots and the 30-minute delayed feed"
+      : "No API key yet: showing bundled sample snapshots. Add your CryptoDataApi key in Settings for live data.";
+  } else if (access.demoMode && access.source === "none") {
+    label = "DEMO";
+    cls = `${PILL} border border-gold/50 bg-gold/10 text-gold`;
+    hint = "Demo mode: the 30-minute delayed feed only";
+  } else if (access.source === "none") {
+    label = "NO KEY";
+    hint = "Add your CryptoDataApi key in Settings";
+  } else if (access.authError?.isAuth) {
+    label = "INVALID";
+    cls = `${PILL} border border-short/50 bg-short/10 text-short`;
+    hint = access.source === "server" ? "The API rejected the server key (CDA_API_KEY)" : "The API rejected this key";
+  } else if (access.tier) {
+    hint =
+      access.source === "server"
+        ? `Using the server key (CDA_API_KEY), ${TIER_LABEL[access.tier]} tier. Add your own key in Settings to use it instead.`
+        : `${TIER_LABEL[access.tier]} key${access.keyInfo?.keyPrefix ? ` · ${access.keyInfo.keyPrefix}…` : ""}`;
+    if (access.tier === "pro_plus") {
+      label = "PRO+";
+      cls = `${PILL} text-deck`;
+      style = { background: "linear-gradient(90deg,#00f5d4,#4d7cff)", boxShadow: "0 0 14px rgba(0,245,212,.4)" };
+    } else if (access.tier === "pro") {
+      label = "PRO";
+      cls = `${PILL} border border-long/50 bg-long/10 text-long`;
+      style = { boxShadow: "0 0 12px rgba(0,245,212,.2)" };
+    } else {
+      label = "FREE";
+      cls = `${PILL} border border-iris/30 text-ink-soft`;
+    }
+  }
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Link href="/settings" className={cls} style={style}>
+          {label}
+        </Link>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-64 text-xs">{hint}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+/** "API today 2,570/50,000" with a thin progress bar (blue, amber > 70%, pink > 90%). */
+export function ApiUsage() {
+  const rl = useRateLimit();
+  const access = useAccess();
+  const limitDay = rl.limitDay ?? access.keyInfo?.dailyLimit ?? null;
+  const remainingDay =
+    rl.remainingDay ??
+    (access.keyInfo?.dailyLimit != null && access.keyInfo.requestsToday != null ? access.keyInfo.dailyLimit - access.keyInfo.requestsToday : null);
+  const known = limitDay !== null && limitDay > 0 && remainingDay !== null;
+  const used = known ? Math.max(0, limitDay - remainingDay) : 0;
+  const pct = known ? Math.min(100, (used / limitDay) * 100) : 0;
+  const bar = pct > 90 ? DECK.short : pct > 70 ? DECK.amber : DECK.blue;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="flex flex-col gap-[5px]" aria-label={known ? `API usage ${fmtInt(used)} of ${fmtInt(limitDay)} requests today` : "API usage unknown"}>
+          <div className="flex justify-between gap-2 text-[11px] text-ink-muted">
+            <span>API today</span>
+            <span className="font-mono text-ink">
+              {known ? fmtInt(used) : "—"}
+              {known && <span className="text-ink-dim">/{fmtInt(limitDay)}</span>}
+            </span>
+          </div>
+          <div className="h-[3px] overflow-hidden rounded-[3px] bg-iris/14">
+            <div className="h-full" style={{ width: `${known ? Math.max(1.5, pct) : 0}%`, background: bar, boxShadow: `0 0 8px ${bar}` }} />
+          </div>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent className="text-xs">
+        {known ? (
+          <>
+            <div>
+              Daily: {fmtInt(remainingDay)} of {fmtInt(limitDay)} remaining
+            </div>
+            {rl.limitMinute !== null && rl.remainingMinute !== null && (
+              <div>
+                This minute: {fmtInt(rl.remainingMinute)} of {fmtInt(rl.limitMinute)} remaining
+              </div>
+            )}
+          </>
+        ) : (
+          <div>Usage appears after the first API response.</div>
+        )}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+/** Where the data comes from: server key, the visitor's key, or the bundled snapshot. */
+export function KeySourceLine() {
+  const access = useAccess();
+  let text = " ";
+  if (access.hydrated) {
+    if (access.source === "server") text = "Using server key";
+    else if (access.source === "user") text = "Using your key";
+    else if (access.source === "sample") text = access.demoMode ? "Demo mode · sample data" : "Sample data · add a key";
+    else text = "No key · add one in Settings";
+  }
+  return (
+    <Link href="/settings" className="text-[11px] text-ink-muted hover:text-ink">
+      {text}
+    </Link>
   );
 }

@@ -2,17 +2,20 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
-import { LoaderCircle, Search } from "lucide-react";
+import { CoinLogo } from "@/components/deck/coin-logo";
+import { SearchIcon } from "@/components/deck/icons";
 import { useCoinSearch } from "@/hooks/use-cda-data";
 import { fmtPct, fmtPrice } from "@/lib/format";
+import { DECK } from "@/lib/palette";
 import { cn } from "@/lib/utils";
 
 type Option = { symbol: string; name: string | null; price: number | null; change: number | null; rank: number | null };
 
-/** Header search box: /coins/search with debounce, keyboard navigation, Enter to open. */
-export function CoinSearch({ className }: { className?: string }) {
+/** Sidebar coin search: /coins/search with debounce, keyboard navigation, Enter to open, ⌘K / Ctrl+K to focus. */
+export function CoinSearch({ className, onNavigate }: { className?: string; onNavigate?: () => void }) {
   const router = useRouter();
   const listId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [q, setQ] = useState("");
   const [debounced, setDebounced] = useState("");
   const [open, setOpen] = useState(false);
@@ -23,6 +26,21 @@ export function CoinSearch({ className }: { className?: string }) {
     const t = setTimeout(() => setDebounced(q), 300);
     return () => clearTimeout(t);
   }, [q]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        const el = inputRef.current;
+        // Only the visible instance (desktop sidebar or open mobile drawer) takes focus.
+        if (!el || el.getClientRects().length === 0) return;
+        e.preventDefault();
+        el.focus();
+        el.select();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const search = useCoinSearch(debounced);
   const term = q.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -42,57 +60,66 @@ export function CoinSearch({ className }: { className?: string }) {
     setOpen(false);
     setQ("");
     setDebounced("");
+    inputRef.current?.blur();
+    onNavigate?.();
     router.push(`/coin/${encodeURIComponent(symbol)}`);
   };
 
   return (
     <div className={cn("relative", className)}>
-      <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
-      <input
-        type="search"
-        role="combobox"
-        aria-expanded={open && options.length > 0}
-        aria-controls={listId}
-        aria-autocomplete="list"
-        aria-activedescendant={activeIdx >= 0 ? `${listId}-${activeIdx}` : undefined}
-        aria-label="Search coins"
-        placeholder="Search coin (BTC, ETH…)"
-        value={q}
-        onChange={(e) => {
-          setQ(e.target.value);
-          setActive(0);
-          setOpen(true);
-        }}
-        onFocus={() => setOpen(true)}
-        onBlur={() => {
-          blurTimer.current = setTimeout(() => setOpen(false), 150);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowDown") {
-            e.preventDefault();
+      <div className="flex items-center gap-2 rounded-[10px] border border-iris/16 bg-field px-3 py-[9px] focus-within:border-long/40">
+        <SearchIcon size={14} stroke={DECK.muted} />
+        <input
+          ref={inputRef}
+          type="search"
+          role="combobox"
+          aria-expanded={open && options.length > 0}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={activeIdx >= 0 ? `${listId}-${activeIdx}` : undefined}
+          aria-label="Search coins"
+          placeholder="Search coin"
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setActive(0);
             setOpen(true);
-            setActive((a) => Math.min(a + 1, Math.max(0, options.length - 1)));
-          } else if (e.key === "ArrowUp") {
-            e.preventDefault();
-            setActive((a) => Math.max(0, a - 1));
-          } else if (e.key === "Enter") {
-            e.preventDefault();
-            const opt = activeIdx >= 0 ? options[activeIdx] : null;
-            if (opt) go(opt.symbol);
-          } else if (e.key === "Escape") {
-            setOpen(false);
-          }
-        }}
-        className="h-8 w-full rounded-md border border-input bg-muted/40 pr-8 pl-8 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
-      />
-      {search.isFetching && (
-        <LoaderCircle className="absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2 animate-spin text-muted-foreground" aria-hidden />
-      )}
+          }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => {
+            blurTimer.current = setTimeout(() => setOpen(false), 150);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowDown") {
+              e.preventDefault();
+              setOpen(true);
+              setActive((a) => Math.min(a + 1, Math.max(0, options.length - 1)));
+            } else if (e.key === "ArrowUp") {
+              e.preventDefault();
+              setActive((a) => Math.max(0, a - 1));
+            } else if (e.key === "Enter") {
+              e.preventDefault();
+              const opt = activeIdx >= 0 ? options[activeIdx] : null;
+              if (opt) go(opt.symbol);
+            } else if (e.key === "Escape") {
+              setOpen(false);
+            }
+          }}
+          className="min-w-0 flex-1 border-0 bg-transparent font-sans text-[13px] text-ink outline-none [&::-webkit-search-cancel-button]:hidden"
+        />
+        {search.isFetching ? (
+          <span className="size-3 shrink-0 animate-spin rounded-full border-2 border-iris/30 border-t-long" aria-hidden />
+        ) : (
+          <span className="rounded-[5px] border border-iris/20 px-1.5 py-0.5 font-mono text-[10px] text-ink-dim" aria-hidden>
+            ⌘K
+          </span>
+        )}
+      </div>
       {open && options.length > 0 && (
         <ul
           id={listId}
           role="listbox"
-          className="absolute top-full left-0 z-50 mt-1 max-h-80 w-[min(22rem,calc(100vw-1.5rem))] overflow-auto rounded-md border border-border bg-popover p-1 shadow-xl"
+          className="absolute top-full left-0 z-50 mt-1.5 max-h-80 w-[min(22rem,calc(100vw-2rem))] overflow-auto rounded-[12px] border border-iris/16 bg-[#0b0d1a]/95 p-1.5 shadow-[0_18px_40px_rgba(0,0,0,.55)] backdrop-blur-md"
           onMouseDown={() => {
             if (blurTimer.current) clearTimeout(blurTimer.current);
           }}
@@ -106,24 +133,22 @@ export function CoinSearch({ className }: { className?: string }) {
               onMouseEnter={() => setActive(i)}
               onClick={() => go(o.symbol)}
               className={cn(
-                "flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm",
-                i === activeIdx ? "bg-accent text-accent-foreground" : "text-popover-foreground",
+                "flex cursor-pointer items-center gap-2.5 rounded-[8px] px-2 py-1.5 text-[13px]",
+                i === activeIdx ? "bg-iris/12 text-ink-bright" : "text-ink",
               )}
             >
-              <span className="w-14 shrink-0 font-mono text-xs font-semibold">{o.symbol}</span>
-              <span className="flex-1 truncate text-xs text-muted-foreground">{o.name ?? "Open chart"}</span>
-              {o.price !== null && <span className="tabular text-xs">{fmtPrice(o.price)}</span>}
+              <CoinLogo symbol={o.symbol} size={20} />
+              <span className="w-14 shrink-0 font-display text-[13px] font-semibold">{o.symbol}</span>
+              <span className="min-w-0 flex-1 truncate text-[12px] text-ink-muted">{o.name ?? "Open chart"}</span>
+              {o.price !== null && <span className="font-mono text-[11.5px]">{fmtPrice(o.price)}</span>}
               {o.change !== null && (
-                <span className="tabular flex w-16 items-center justify-end gap-1 text-xs">
-                  <span className={cn("size-1.5 rounded-full", o.change >= 0 ? "bg-long" : "bg-short")} aria-hidden />
+                <span className="w-14 text-right font-mono text-[11.5px]" style={{ color: o.change >= 0 ? DECK.long : DECK.short }}>
                   {fmtPct(o.change, { sign: true })}
                 </span>
               )}
             </li>
           ))}
-          {search.isError && (
-            <li className="px-2 py-1.5 text-xs text-muted-foreground">Search needs an API key. Press Enter to open the symbol directly.</li>
-          )}
+          {search.isError && <li className="px-2 py-1.5 text-[12px] text-ink-muted">Search needs an API key. Press Enter to open the symbol directly.</li>}
         </ul>
       )}
     </div>

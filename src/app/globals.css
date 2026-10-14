@@ -4,12 +4,44 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * WhaleDeck design tokens (dark only).
+ * Ink: text #e8ecff · bright #f2f4ff · soft #a3a9cc · muted #8a90b4 · dim #6d7399 · dimmer #5d6390
+ * Accents: long/cyan #00f5d4 · short/pink #ff2d75 · azure #4d7cff · lilac #b18cff · gold #ffc53d
+ * Hairlines and surfaces are tints of iris rgb(120 140 255).
+ */
+@theme {
+  --color-ink: #e8ecff;
+  --color-ink-bright: #f2f4ff;
+  --color-ink-soft: #a3a9cc;
+  --color-ink-muted: #8a90b4;
+  --color-ink-dim: #6d7399;
+  --color-ink-dimmer: #5d6390;
+
+  --color-long-hover: #7dfff0;
+  --color-long-deep: #00a896;
+  --color-short-soft: #ff6b9d;
+  --color-azure: #4d7cff;
+  --color-azure-soft: #7d9bff;
+  --color-lilac: #b18cff;
+  --color-gold: #ffc53d;
+  --color-slate-deck: #3a3f63;
+
+  --color-iris: rgb(120 140 255);
+  --color-panel: rgb(9 11 22 / 0.8);
+  --color-field: rgb(14 16 30 / 0.7);
+  --color-well: rgb(14 16 30 / 0.6);
+  --color-logo: #0b0d18;
+  --color-deck: #05060b;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-heading: var(--font-chakra), var(--font-manrope), sans-serif;
+  --font-display: var(--font-chakra), var(--font-manrope), sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -40,8 +72,7 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
 
-  /* Trading semantics. Validated as a set for CVD + contrast on the dark card
-     surface; every use also carries a text label, sign or shape. */
+  /* Trading semantics: long/buy/outflow, short/sell/inflow, liquidation, transfer, position. */
   --color-long: var(--long);
   --color-short: var(--short);
   --color-liq: var(--liq);
@@ -60,105 +91,89 @@
 }
 
 :root {
-  --background: oklch(0.985 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.5 0 0);
-  --accent: oklch(0.95 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: #2a78d6;
-  --chart-1: #2a78d6;
-  --chart-2: #eb6834;
-  --chart-3: #1baf7a;
-  --chart-4: #eda100;
-  --chart-5: #e87ba4;
-  --radius: 0.625rem;
-  --sidebar: oklch(0.97 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.93 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-
-  --long: #0f8a7e;
-  --short: #d24a33;
-  --liq: #a68f00;
-  --transfer: #2a78d6;
-  --position: #c43c70;
-  --context: #6b7280;
-  --grid: #e5e7eb;
-}
-
-.dark {
   color-scheme: dark;
-  --background: #0d1016;
-  --foreground: #e8ebf0;
-  --card: #141821;
-  --card-foreground: #e8ebf0;
-  --popover: #181d27;
-  --popover-foreground: #e8ebf0;
-  --primary: #e8ebf0;
-  --primary-foreground: #10141b;
-  --secondary: #1e2430;
-  --secondary-foreground: #e8ebf0;
-  --muted: #1b212c;
-  --muted-foreground: #949cad;
-  --accent: #222937;
-  --accent-foreground: #f2f4f7;
-  --destructive: #e5674e;
-  --border: rgb(255 255 255 / 0.08);
-  --input: rgb(255 255 255 / 0.12);
-  --ring: #3987e5;
-  --chart-1: #3987e5;
-  --chart-2: #d95926;
-  --chart-3: #199e70;
-  --chart-4: #c98500;
-  --chart-5: #d55181;
-  --sidebar: #10141b;
-  --sidebar-foreground: #d9dde5;
-  --sidebar-primary: #3987e5;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1b212c;
-  --sidebar-accent-foreground: #f2f4f7;
-  --sidebar-border: rgb(255 255 255 / 0.07);
-  --sidebar-ring: #3987e5;
+  --background: #05060b;
+  --foreground: #e8ecff;
+  --card: #090b16;
+  --card-foreground: #e8ecff;
+  --popover: #0c0e1c;
+  --popover-foreground: #e8ecff;
+  --primary: #00f5d4;
+  --primary-foreground: #05060b;
+  --secondary: #121530;
+  --secondary-foreground: #e8ecff;
+  --muted: #10132a;
+  --muted-foreground: #8a90b4;
+  --accent: #161a38;
+  --accent-foreground: #f2f4ff;
+  --destructive: #ff2d75;
+  --border: rgb(120 140 255 / 0.13);
+  --input: rgb(120 140 255 / 0.16);
+  --ring: #00f5d4;
+  --chart-1: #4d7cff;
+  --chart-2: #00f5d4;
+  --chart-3: #ff2d75;
+  --chart-4: #ffc53d;
+  --chart-5: #b18cff;
+  --radius: 0.625rem;
+  --sidebar: rgb(6 7 14 / 0.75);
+  --sidebar-foreground: #a3a9cc;
+  --sidebar-primary: #00f5d4;
+  --sidebar-primary-foreground: #05060b;
+  --sidebar-accent: rgb(120 140 255 / 0.08);
+  --sidebar-accent-foreground: #e8ecff;
+  --sidebar-border: rgb(120 140 255 / 0.1);
+  --sidebar-ring: #00f5d4;
 
-  --long: #19a89a;
-  --short: #e5674e;
-  --liq: #c2a800;
-  --transfer: #3987e5;
-  --position: #d55181;
-  --context: #8b93a4;
-  --grid: #232a36;
+  --long: #00f5d4;
+  --short: #ff2d75;
+  --liq: #ffc53d;
+  --transfer: #4d7cff;
+  --position: #b18cff;
+  --context: #8a90b4;
+  --grid: rgb(120 140 255 / 0.07);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
     @apply font-sans;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  body {
+    @apply text-foreground;
+    background-color: #05060b;
+    background-image:
+      radial-gradient(ellipse 60% 40% at 55% -5%, rgba(77, 124, 255, 0.16), transparent 70%),
+      linear-gradient(rgba(120, 140, 255, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(120, 140, 255, 0.035) 1px, transparent 1px);
+    background-size:
+      100% 100%,
+      48px 48px,
+      48px 48px;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: #6d7399;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #1c2140;
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
   }
 }
 
-/* Radar sweep: a rotating wedge, origin at the radar centre (view-box units). */
-@keyframes radar-sweep {
+/* Radar sweep wedge, rotating about the SVG origin (the radar centre). */
+@keyframes radarSweep {
   from {
     transform: rotate(0deg);
   }
@@ -167,32 +182,46 @@
   }
 }
 
-.radar-sweep {
-  transform-box: view-box;
-  transform-origin: 50% 50%;
-  animation: radar-sweep 6s linear infinite;
-}
-
-@keyframes blip-ping {
+@keyframes blipPulse {
   0% {
-    opacity: 0.55;
-    transform: scale(1);
+    transform: translate(-50%, -50%) scale(0.6);
+    opacity: 0.9;
   }
   100% {
+    transform: translate(-50%, -50%) scale(2.4);
     opacity: 0;
-    transform: scale(2.4);
   }
 }
 
-.radar-blip-ping {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: blip-ping 2.4s ease-out infinite;
+@keyframes livePulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 245, 212, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(0, 245, 212, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 245, 212, 0);
+  }
+}
+
+.radar-sweep {
+  transform-origin: 0 0;
+  animation: radarSweep 7s linear infinite;
+}
+
+.blip-pulse {
+  animation: blipPulse 1.8s ease-out infinite;
+}
+
+.live-pulse {
+  animation: livePulse 1.6s infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .radar-sweep,
-  .radar-blip-ping {
+  .blip-pulse,
+  .live-pulse {
     animation: none;
   }
 }
