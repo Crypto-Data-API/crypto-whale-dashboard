@@ -185,12 +185,12 @@ export function WhaleTable({ coins, compact = false }: { coins: WhaleCoin[]; com
                 aria-checked={lean === l}
                 onClick={() => setLean(l)}
                 className={cn(
-                  "flex items-center gap-1 rounded px-2 py-0.5 capitalize",
+                  "flex items-center gap-1 rounded px-2 py-0.5",
                   lean === l ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {l !== "all" && <span className={cn("size-1.5 rounded-full", l === "long" ? "bg-long" : "bg-short")} />}
-                {l === "all" ? "All" : `${l}-leaning`}
+                {l === "all" ? "All" : l === "long" ? "Long-leaning" : "Short-leaning"}
               </button>
             ))}
           </div>

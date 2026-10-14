@@ -92,7 +92,7 @@ export function CoinSearch({ className }: { className?: string }) {
         <ul
           id={listId}
           role="listbox"
-          className="absolute top-full right-0 left-0 z-50 mt-1 max-h-80 overflow-auto rounded-md border border-border bg-popover p-1 shadow-xl"
+          className="absolute top-full left-0 z-50 mt-1 max-h-80 w-[min(22rem,calc(100vw-1.5rem))] overflow-auto rounded-md border border-border bg-popover p-1 shadow-xl"
           onMouseDown={() => {
             if (blurTimer.current) clearTimeout(blurTimer.current);
           }}
@@ -114,7 +114,8 @@ export function CoinSearch({ className }: { className?: string }) {
               <span className="flex-1 truncate text-xs text-muted-foreground">{o.name ?? "Open chart"}</span>
               {o.price !== null && <span className="tabular text-xs">{fmtPrice(o.price)}</span>}
               {o.change !== null && (
-                <span className={cn("tabular w-14 text-right text-xs", o.change >= 0 ? "text-long" : "text-short")}>
+                <span className="tabular flex w-16 items-center justify-end gap-1 text-xs">
+                  <span className={cn("size-1.5 rounded-full", o.change >= 0 ? "bg-long" : "bg-short")} aria-hidden />
                   {fmtPct(o.change, { sign: true })}
                 </span>
               )}

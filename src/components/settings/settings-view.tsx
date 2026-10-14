@@ -122,7 +122,7 @@ function ApiKeyCard() {
             </div>
             <Button onClick={() => candidate && test.mutate(candidate)} disabled={!candidate || test.isPending}>
               {test.isPending ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}
-              {draft.trim() ? "Test & Save" : "Re-test saved key"}
+              {draft.trim() || !apiKey ? "Test & Save" : "Re-test saved key"}
             </Button>
             {apiKey && (
               <Button
