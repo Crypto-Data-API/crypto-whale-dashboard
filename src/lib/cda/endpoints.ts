@@ -17,6 +17,7 @@ import {
   parseWhaleHistory,
   parseWhales,
 } from "./parse";
+import { parseTraderProfiles, parseWhaleAccounts } from "./parse-accounts";
 import type {
   CandlesResult,
   ChartInterval,
@@ -32,6 +33,8 @@ import type {
   TradeFlowData,
   WhaleHistoryPoint,
   WhalesData,
+  TraderProfile,
+  WhaleAccountsData,
 } from "./types";
 
 type Sig = { signal?: AbortSignal };
@@ -132,4 +135,14 @@ export async function getHlOpenInterest({ signal }: Sig = {}): Promise<HlOpenInt
 /** GET /coins/search */
 export async function searchCoins(q: string, { signal }: Sig = {}): Promise<CoinSearchResult[]> {
   return parseCoinSearch(await cdaFetch("coins/search", { params: { q }, signal, retry: false }));
+}
+
+/** GET /daily/hl-traders: leaderboard plus open positions for tracked wallets. */
+export async function getWhaleAccounts({ signal }: Sig = {}): Promise<WhaleAccountsData> {
+  return parseWhaleAccounts(await cdaFetch("daily/hl-traders", { signal }));
+}
+
+/** GET /hyperliquid/trader-profiles (Pro): classification, win rate and edges per wallet. */
+export async function getTraderProfiles({ signal }: Sig = {}): Promise<Record<string, TraderProfile>> {
+  return parseTraderProfiles(await cdaFetch("hyperliquid/trader-profiles", { signal }));
 }

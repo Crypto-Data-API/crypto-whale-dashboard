@@ -150,13 +150,13 @@ export function WhaleRadarView() {
         )}
         <WhaleStats data={data} loading={!data} />
         {data && (
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
-            <Card size="sm" className="self-start">
+          <div className="flex flex-col gap-4">
+            <Card size="sm">
               <CardHeader>
                 <CardTitle>Positioning radar</CardTitle>
                 <CardDescription>{data.coins.length} coins · click a blip to open its chart</CardDescription>
               </CardHeader>
-              <CardContent className="flex flex-col gap-3">
+              <CardContent className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-center">
                 <RadarChart coins={data.coins} />
                 <RadarLegend />
               </CardContent>

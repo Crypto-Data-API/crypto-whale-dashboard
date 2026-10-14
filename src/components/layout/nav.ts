@@ -1,4 +1,4 @@
-import { Activity, Bell, Radar, ScanSearch, Settings, Users, type LucideIcon } from "lucide-react";
+import { Bell, Radar, Settings, Users, type LucideIcon } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -10,10 +10,6 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Whale Radar", icon: Radar },
   { href: "/alerts", label: "Whale Alerts", icon: Bell },
-  { href: "/traders", label: "Traders", icon: Users, soon: true },
-  { href: "/market", label: "Market", icon: Activity, soon: true },
-  { href: "/scanners", label: "Scanners", icon: ScanSearch, soon: true },
+  { href: "/accounts", label: "Whale Accounts", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
-
-export const QUICK_COINS = ["BTC", "ETH", "SOL", "HYPE", "XRP", "DOGE"];

@@ -12,6 +12,8 @@ import {
   getRecentEvents,
   getSpikeAlerts,
   getTradeFlow,
+  getTraderProfiles,
+  getWhaleAccounts,
   getWhales,
   getWhalesHistory,
   searchCoins,
@@ -142,5 +144,28 @@ export function useCoinSearch(q: string) {
     enabled,
     staleTime: 10 * 60_000,
     retry: false,
+  });
+}
+
+/** Tracked Hyperliquid whale wallets with open positions (any key, 5-min poll). */
+export function useWhaleAccounts() {
+  const sec = useSettings((s) => s.refresh.whalesSec);
+  return useCdaQuery({
+    key: ["daily/hl-traders"],
+    fn: (signal) => getWhaleAccounts({ signal }),
+    requires: "any",
+    refetchMs: sec * 1000,
+    keepPrevious: true,
+  });
+}
+
+/** Trader classification and edge stats per wallet (Pro, 10-min poll). */
+export function useTraderProfiles() {
+  return useCdaQuery({
+    key: ["hyperliquid/trader-profiles"],
+    fn: (signal) => getTraderProfiles({ signal }),
+    requires: "pro",
+    refetchMs: 10 * 60_000,
+    keepPrevious: true,
   });
 }

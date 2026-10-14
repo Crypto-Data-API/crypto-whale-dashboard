@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fish } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { NAV_ITEMS, QUICK_COINS } from "./nav";
+import { NAV_ITEMS } from "./nav";
 
 export function Brand() {
   return (
@@ -47,29 +47,6 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           );
         })}
       </ul>
-      <div>
-        <p className="px-2.5 pb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">Quick coins</p>
-        <ul className="grid grid-cols-3 gap-1 px-1.5">
-          {QUICK_COINS.map((c) => {
-            const href = `/coin/${c}`;
-            const active = pathname === href;
-            return (
-              <li key={c}>
-                <Link
-                  href={href}
-                  onClick={onNavigate}
-                  className={cn(
-                    "block rounded-md px-1.5 py-1 text-center font-mono text-xs text-sidebar-foreground/80 hover:bg-sidebar-accent",
-                    active && "bg-sidebar-accent text-sidebar-accent-foreground",
-                  )}
-                >
-                  {c}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
     </nav>
   );
 }

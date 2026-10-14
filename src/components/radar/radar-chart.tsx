@@ -86,7 +86,7 @@ export function RadarChart({ coins, className, sample = false }: { coins: WhaleC
   const rings = [0.25, 0.5, 0.75, 1];
 
   return (
-    <div className={cn("relative mx-auto aspect-square w-full max-w-[460px]", className)}>
+    <div className={cn("relative mx-auto aspect-square w-full max-w-[780px]", className)}>
       <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="size-full select-none" role="group" aria-label="Whale positioning radar">
         <defs>
           <radialGradient id="radar-bg" cx="50%" cy="50%" r="50%">

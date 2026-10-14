@@ -322,3 +322,60 @@ export interface HlOpenInterest {
   asOf: number | null;
   byCoin: Record<string, number>;
 }
+
+// ---- Whale accounts (Hyperliquid wallets) ----
+
+export interface PnlWindows {
+  day: number | null;
+  week: number | null;
+  month: number | null;
+  allTime: number | null;
+}
+
+export interface WalletPosition {
+  coin: string;
+  side: "long" | "short" | "unknown";
+  size: number | null;
+  entryPrice: number | null;
+  unrealizedPnl: number | null;
+  leverage: number | null;
+  liquidationPrice: number | null;
+  marginUsed: number | null;
+  /** Approximate notional in USD (size * entry price). */
+  notionalUsd: number | null;
+}
+
+export interface WhaleAccount {
+  address: string;
+  displayName: string | null;
+  accountValue: number | null;
+  score: number | null;
+  pnl: PnlWindows;
+  roi: PnlWindows;
+  volume: PnlWindows;
+  profitableTimeframes: number | null;
+  positions: WalletPosition[];
+  /** Sum of position notionals, long and short. */
+  longUsd: number;
+  shortUsd: number;
+  maxLeverage: number | null;
+}
+
+export interface WhaleAccountsData {
+  accounts: WhaleAccount[];
+  trackedCount: number | null;
+  updatedAt: number | null;
+}
+
+export interface TraderProfile {
+  address: string;
+  traderType: string | null;
+  totalTrades: number | null;
+  winRate: number | null;
+  profitFactor: number | null;
+  totalPnl: number | null;
+  avgDurationHours: number | null;
+  approxSharpe: number | null;
+  edges: string[];
+  periodDays: number | null;
+}
