@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
 import { DeckSkeleton, ErrorState } from "@/components/common/gate-notice";
 import { PageHead, RefreshButton, UpdatedAgo } from "@/components/deck/page-head";
@@ -51,6 +51,13 @@ function RadarSection({
       </div>
     </section>
   );
+}
+
+/** Radar for the current URL: `/?sel=ETH` preselects a coin (Whale Exposure table, coin page "back"). */
+export function WhaleRadarFromUrl() {
+  const raw = useSearchParams().get("sel");
+  const initialSel = raw ? raw.trim().slice(0, 32) || null : null;
+  return <WhaleRadarView key={initialSel ?? ""} initialSel={initialSel} />;
 }
 
 export function WhaleRadarView({ initialSel }: { initialSel: string | null }) {

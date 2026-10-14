@@ -5,6 +5,7 @@ import { useSettingsHydrated } from "@/hooks/use-hydrated";
 import { isCdaError, keyFingerprint, type CdaError } from "@/lib/cda/client";
 import { getKeyInfo } from "@/lib/cda/endpoints";
 import { TIER_RANK, type KeyInfo, type Tier } from "@/lib/cda/types";
+import { STATIC_SAMPLE, withBasePath } from "@/lib/deploy";
 import { useSettings } from "@/stores/settings";
 
 /** Minimum access an endpoint needs. "none" = keyless (e.g. /stream/delayed). */
@@ -38,12 +39,16 @@ export interface Access {
   gate: (req: Requirement) => Gate;
 }
 
-/** GET /api/cda/_status -> { hasServerKey, hasSampleData } (never the key itself). */
+/**
+ * GET /api/cda/_status -> { hasServerKey, hasSampleData } (never the key itself).
+ * Skipped in the static build, which has no server.
+ */
 function useServerStatus() {
   return useQuery({
     queryKey: ["cda-status"],
+    enabled: !STATIC_SAMPLE,
     queryFn: async ({ signal }) => {
-      const res = await fetch("/api/cda/_status", { signal, cache: "no-store" });
+      const res = await fetch(withBasePath("/api/cda/_status"), { signal, cache: "no-store" });
       if (!res.ok) return { hasServerKey: false, hasSampleData: false };
       const j = (await res.json()) as { hasServerKey?: unknown; hasSampleData?: unknown };
       return { hasServerKey: j.hasServerKey === true, hasSampleData: j.hasSampleData === true };
@@ -53,15 +58,22 @@ function useServerStatus() {
   });
 }
 
-/** Who we are talking to the API as, and what that key is allowed to do. */
+/**
+ * Who we are talking to the API as, and what that key is allowed to do.
+ * The static build (GitHub Pages) can only show the bundled snapshot: the
+ * API sends no CORS headers, so a browser cannot call it directly. There the
+ * source is always "sample" and stored keys and Demo mode are ignored.
+ */
 export function useAccess(): Access {
   const hydrated = useSettingsHydrated();
-  const apiKey = useSettings((s) => s.apiKey);
-  const demoMode = useSettings((s) => s.demoMode);
+  const storedKey = useSettings((s) => s.apiKey);
+  const storedDemo = useSettings((s) => s.demoMode);
   const storedInfo = useSettings((s) => s.keyInfo);
   const cfg = useServerStatus();
-  const hasServerKey = cfg.data?.hasServerKey === true;
-  const hasSampleData = cfg.data?.hasSampleData === true;
+  const apiKey = STATIC_SAMPLE ? "" : storedKey;
+  const demoMode = STATIC_SAMPLE ? false : storedDemo;
+  const hasServerKey = !STATIC_SAMPLE && cfg.data?.hasServerKey === true;
+  const hasSampleData = STATIC_SAMPLE || cfg.data?.hasSampleData === true;
 
   const userKey = demoMode ? "" : apiKey;
   // Demo mode skips the server key too, so it always shows the bundled sample data.
@@ -83,7 +95,7 @@ export function useAccess(): Access {
   const tier = keyInfo?.tier ?? null;
   const authLoading = source !== "none" && auth.isPending && !keyInfo;
 
-  const cfgPending = !userKey && cfg.isPending;
+  const cfgPending = !STATIC_SAMPLE && !userKey && cfg.isPending;
 
   const gate = (req: Requirement): Gate => {
     if (!hydrated) return "loading";

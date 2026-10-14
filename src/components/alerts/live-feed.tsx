@@ -56,6 +56,7 @@ function DelayedBanner() {
 const STREAM_TEXT: Record<StreamStatus, { text: string; color: string }> = {
   live: { text: "Live", color: DECK.long },
   delayed: { text: "Delayed 30m", color: DECK.amber },
+  sample: { text: "Sample replay", color: DECK.long },
   connecting: { text: "Connecting…", color: DECK.amber },
   reconnecting: { text: "Reconnecting…", color: DECK.amber },
   error: { text: "Error", color: DECK.short },

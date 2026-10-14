@@ -9,8 +9,9 @@ export const PERSIST_SIZE = 500;
 const PERSIST_KEY = "cwd-stream-events-v1";
 const PERSIST_THROTTLE_MS = 5000;
 
-export type StreamMode = "live" | "delayed" | "off";
-export type StreamStatus = "idle" | "connecting" | "live" | "reconnecting" | "delayed" | "error" | "off";
+/** "sample": static build, bundled snapshot plus a periodic replay (no server, no stream). */
+export type StreamMode = "live" | "delayed" | "sample" | "off";
+export type StreamStatus = "idle" | "connecting" | "live" | "reconnecting" | "delayed" | "sample" | "error" | "off";
 
 export interface StreamState {
   /** Ring buffer, ascending by id, at most RING_SIZE events. */

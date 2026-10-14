@@ -15,6 +15,7 @@ import { useStream, type StreamStatus } from "@/stores/stream";
 const STATUS_META: Record<StreamStatus, { label: string; color: string; pulse?: boolean; hint: string }> = {
   live: { label: "LIVE", color: DECK.long, pulse: true, hint: "Live" },
   delayed: { label: "DELAYED", color: DECK.amber, hint: "Delayed 30 minutes" },
+  sample: { label: "SAMPLE", color: DECK.long, pulse: true, hint: "Sample snapshot, replaying recent events" },
   connecting: { label: "CONNECTING", color: DECK.amber, hint: "Connecting" },
   reconnecting: { label: "RECONNECTING", color: DECK.amber, hint: "Reconnecting" },
   error: { label: "ERROR", color: DECK.short, hint: "Stream error" },
@@ -22,7 +23,7 @@ const STATUS_META: Record<StreamStatus, { label: string; color: string; pulse?: 
   idle: { label: "IDLE", color: DECK.dim, hint: "Idle" },
 };
 
-/** Pulsing stream status: LIVE (cyan), DELAYED (amber), OFFLINE / ERROR (pink). */
+/** Pulsing stream status: LIVE / SAMPLE (cyan), DELAYED (amber), OFFLINE / ERROR (pink). */
 export function LiveIndicator() {
   const status = useStream((s) => s.status);
   const message = useStream((s) => s.message);

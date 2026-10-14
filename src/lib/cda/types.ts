@@ -133,8 +133,8 @@ export function isEventType(t: string): t is EventType {
   return (EVENT_TYPES as string[]).includes(t);
 }
 
-/** Where an event in the buffer came from. */
-export type EventOrigin = "live" | "backfill" | "delayed" | "restored";
+/** Where an event in the buffer came from ("sample": bundled snapshot in the static build). */
+export type EventOrigin = "live" | "backfill" | "delayed" | "restored" | "sample";
 
 /**
  * A single stream event. One loose shape (rather than a discriminated union)

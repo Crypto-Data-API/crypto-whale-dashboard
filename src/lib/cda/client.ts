@@ -1,8 +1,10 @@
 "use client";
 
+import { STATIC_SAMPLE, withBasePath } from "@/lib/deploy";
 import { useRateLimit } from "@/stores/rate-limit";
 import { useSettings } from "@/stores/settings";
 import { asObj, num, parseTier, pickStr } from "./parse";
+import { sampleFetch } from "./sample-browser";
 import type { Tier } from "./types";
 
 /** Typed API error. `requiredTier` is set for 402/403 tier gates. */
@@ -135,8 +137,7 @@ export function currentClientKey(): string {
   return s.demoMode ? "" : s.apiKey;
 }
 
-export function buildCdaUrl(path: string, params?: Record<string, QueryValue>): string {
-  const clean = path.replace(/^\/+/, "");
+function toSearchParams(params?: Record<string, QueryValue>): URLSearchParams {
   const qs = new URLSearchParams();
   if (params) {
     for (const [k, v] of Object.entries(params)) {
@@ -144,16 +145,53 @@ export function buildCdaUrl(path: string, params?: Record<string, QueryValue>): 
       qs.set(k, String(v));
     }
   }
-  const q = qs.toString();
-  return `/api/cda/${clean}${q ? `?${q}` : ""}`;
+  return qs;
+}
+
+export function buildCdaUrl(path: string, params?: Record<string, QueryValue>): string {
+  const clean = path.replace(/^\/+/, "");
+  const q = toSearchParams(params).toString();
+  return withBasePath(`/api/cda/${clean}${q ? `?${q}` : ""}`);
+}
+
+/**
+ * Static build: no proxy exists, so answer from the bundled snapshot with the
+ * same bodies and errors the proxy would return (404 not_in_sample -> CdaError).
+ */
+async function staticSampleFetch<T>(path: string, params: Record<string, QueryValue> | undefined, signal?: AbortSignal): Promise<T> {
+  // The proxy sees decoded path segments ("quant/coins/BTC"); match that.
+  const rawPath = path
+    .replace(/^\/+/, "")
+    .split("/")
+    .map((seg) => {
+      try {
+        return decodeURIComponent(seg);
+      } catch {
+        return seg;
+      }
+    })
+    .join("/");
+  if (signal?.aborted) throw signal.reason;
+  let reply;
+  try {
+    reply = await sampleFetch(rawPath, toSearchParams(params));
+  } catch {
+    if (signal?.aborted) throw signal.reason;
+    throw new CdaError({ status: 0, code: "network_error", message: "Network error: could not load the bundled sample data." });
+  }
+  if (signal?.aborted) throw signal.reason;
+  if (reply.status >= 200 && reply.status < 300) return reply.body as T;
+  throw errorFromBody(reply.status, reply.body, null);
 }
 
 /**
  * Fetch a CDA endpoint through our Next.js proxy and return parsed JSON.
- * Throws CdaError on non-2xx.
+ * Throws CdaError on non-2xx. In the static build (no server) it resolves
+ * from the bundled sample snapshot instead.
  */
 export async function cdaFetch<T = unknown>(path: string, opts: CdaFetchOptions = {}): Promise<T> {
   const { params, signal, keyOverride, retry = true } = opts;
+  if (STATIC_SAMPLE) return staticSampleFetch<T>(path, params, signal);
   const url = buildCdaUrl(path, params);
   const key = keyOverride === undefined ? currentClientKey() : keyOverride ?? "";
   const headers: HeadersInit = { Accept: "application/json" };

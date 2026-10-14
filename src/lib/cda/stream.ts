@@ -1,5 +1,6 @@
 "use client";
 
+import { withBasePath } from "@/lib/deploy";
 import { useStream } from "@/stores/stream";
 import { isCdaError } from "./client";
 import { getDelayedEvents, getRecentEvents } from "./endpoints";
@@ -15,11 +16,15 @@ import type { CdaEvent } from "./types";
  *           heartbeat watchdog (the proxy turns `: ping` comments into
  *           `event: ping` so the browser can see them).
  * delayed : poll GET /stream/delayed every 60s (no key needed).
+ * sample  : static build only. Loads the snapshot's /stream/recent events,
+ *           then replays a few of the newest ones every 20-40s, re-stamped to
+ *           now with fresh ids, so the feed and sidebar counters move. Never
+ *           touches the network beyond the bundled sample files.
  *
  * All events go through the Zustand ring buffer (dedupe by id).
  */
 
-export type StreamConfig = { mode: "live" | "delayed" | "off"; key: string };
+export type StreamConfig = { mode: "live" | "delayed" | "sample" | "off"; key: string };
 
 type Listener = (events: CdaEvent[]) => void;
 
@@ -29,6 +34,14 @@ const WATCHDOG_STALE_MS = 45_000;
 const FLUSH_MS = 250;
 const MIN_BACKOFF_MS = 1_000;
 const MAX_BACKOFF_MS = 30_000;
+const SAMPLE_FIRST_REPLAY_MS = 6_000;
+const SAMPLE_REPLAY_MIN_MS = 20_000;
+const SAMPLE_REPLAY_MAX_MS = 40_000;
+/** How many of the newest snapshot events per type the replay cycles through. */
+const SAMPLE_REPLAY_PER_TYPE = 15;
+/** Funding is hidden in the feed by default, so it is not replayed. */
+const SAMPLE_REPLAY_TYPES = ["whale_position", "whale_transfer", "liquidation", "oi_delta", "price_move"];
+const SAMPLE_NOTE = "Sample snapshot: recent events are replayed every 20-40 seconds. Live data needs a CryptoDataApi key.";
 export const STREAM_COOKIE = "cda_key";
 
 /**
@@ -39,9 +52,10 @@ export function setStreamKeyCookie(key: string) {
   if (typeof document === "undefined") return;
   const secure = window.location.protocol === "https:" ? "; Secure" : "";
   const base = `${STREAM_COOKIE}=`;
+  const cookiePath = withBasePath("/api/cda/stream");
   document.cookie = key
-    ? `${base}${encodeURIComponent(key)}; Path=/api/cda/stream; SameSite=Strict${secure}`
-    : `${base}; Path=/api/cda/stream; Max-Age=0; SameSite=Strict${secure}`;
+    ? `${base}${encodeURIComponent(key)}; Path=${cookiePath}; SameSite=Strict${secure}`
+    : `${base}; Path=${cookiePath}; Max-Age=0; SameSite=Strict${secure}`;
 }
 
 class StreamManager {
@@ -57,6 +71,9 @@ class StreamManager {
   private backoff = MIN_BACKOFF_MS;
   private connectedOnce = false;
   private listeners = new Set<Listener>();
+  /** Sample mode: snapshot events to replay (types interleaved, newest first) and the next one to use. */
+  private replayPool: CdaEvent[] = [];
+  private replayCursor = 0;
 
   /** Subscribe to events that arrived over the real-time SSE path. */
   onLiveEvents(fn: Listener): () => void {
@@ -73,6 +90,10 @@ class StreamManager {
     const gen = ++this.generation;
     const store = useStream.getState();
     store.setMode(config.mode);
+    if (config.mode === "sample") {
+      void this.startSample(gen);
+      return;
+    }
     setStreamKeyCookie(config.key);
     if (config.mode === "off") {
       store.setStatus("off");
@@ -95,6 +116,8 @@ class StreamManager {
     this.flush();
     this.backoff = MIN_BACKOFF_MS;
     this.connectedOnce = false;
+    this.replayPool = [];
+    this.replayCursor = 0;
   }
 
   /** Force a reconnect (e.g. user pressed "reconnect"). */
@@ -150,7 +173,7 @@ class StreamManager {
     this.closeEs();
     const store = useStream.getState();
     const lastId = store.lastId;
-    const url = `/api/cda/stream${lastId ? `?since_id=${encodeURIComponent(String(lastId))}` : ""}`;
+    const url = withBasePath(`/api/cda/stream${lastId ? `?since_id=${encodeURIComponent(String(lastId))}` : ""}`);
     store.setStatus(this.connectedOnce ? "reconnecting" : "connecting", null);
     const es = new EventSource(url);
     this.es = es;
@@ -276,6 +299,56 @@ class StreamManager {
     void poll();
   }
 
+  /* --------------------------- sample --------------------------- */
+
+  private async startSample(gen: number) {
+    useStream.getState().setStatus("connecting", "Loading the sample snapshot");
+    this.abort = new AbortController();
+    try {
+      const recent = await getRecentEvents({ limit: 500 }, { signal: this.abort.signal });
+      if (this.stale(gen)) return;
+      useStream.getState().ingest(recent.events, "sample");
+      this.replayPool = buildReplayPool(recent.events);
+      // Random start so every page load does not replay the same events first.
+      this.replayCursor = Math.floor(Math.random() * this.replayPool.length);
+    } catch (err) {
+      if (this.stale(gen)) return;
+      useStream.getState().setStatus("error", isCdaError(err) ? err.message : "Could not load the sample events");
+      return;
+    }
+    useStream.getState().touch(Date.now());
+    useStream.getState().setStatus("sample", SAMPLE_NOTE);
+    this.scheduleReplay(gen, SAMPLE_FIRST_REPLAY_MS);
+  }
+
+  private scheduleReplay(gen: number, delayMs: number) {
+    if (this.stale(gen) || this.replayPool.length === 0) return;
+    this.pollTimer = setTimeout(() => {
+      this.pollTimer = null;
+      if (this.stale(gen)) return;
+      this.replaySample();
+      this.scheduleReplay(gen, SAMPLE_REPLAY_MIN_MS + Math.random() * (SAMPLE_REPLAY_MAX_MS - SAMPLE_REPLAY_MIN_MS));
+    }, delayMs);
+  }
+
+  /** Re-emits 1-3 of the newest snapshot events as if they had just arrived. */
+  private replaySample() {
+    const pool = this.replayPool;
+    const st = useStream.getState();
+    const now = Date.now();
+    const count = 1 + Math.floor(Math.random() * Math.min(3, pool.length));
+    // Fresh ids above everything buffered (including events restored from a previous visit).
+    const queuedMax = this.queue.reduce((m, e) => Math.max(m, e.id), 0);
+    let nextId = Math.max(st.events.length ? st.events[st.events.length - 1].id : 0, queuedMax) + 1;
+    for (let i = 0; i < count; i++) {
+      const src = pool[this.replayCursor % pool.length];
+      this.replayCursor++;
+      const ts = now - (count - 1 - i) * 350;
+      this.enqueue({ ...src, id: nextId++, ts, recv_ts: ts, origin: "live" });
+    }
+    st.touch(now);
+  }
+
   /* --------------------------- batching ------------------------- */
 
   private enqueue(ev: CdaEvent) {
@@ -292,6 +365,24 @@ class StreamManager {
     const fresh = useStream.getState().ingest(batch, "live");
     if (fresh.length) for (const fn of this.listeners) fn(fresh);
   }
+}
+
+/**
+ * Newest events of each replayable type, interleaved round-robin so
+ * consecutive replays differ (liquidation, OI change, price move, ...).
+ * Falls back to the newest events of any type.
+ */
+function buildReplayPool(events: CdaEvent[]): CdaEvent[] {
+  const byType = SAMPLE_REPLAY_TYPES.map((t) =>
+    events
+      .filter((e) => e.type === t)
+      .slice(-SAMPLE_REPLAY_PER_TYPE)
+      .reverse(),
+  ).filter((list) => list.length > 0);
+  if (byType.length === 0) return events.slice(-SAMPLE_REPLAY_PER_TYPE).reverse();
+  const pool: CdaEvent[] = [];
+  for (let i = 0; i < SAMPLE_REPLAY_PER_TYPE; i++) for (const list of byType) if (list[i]) pool.push(list[i]);
+  return pool;
 }
 
 function safeJson(s: unknown): unknown {

@@ -16,6 +16,8 @@ node_modules/
 /out/
 /build
 dist/
+# src/app/api parked here by scripts/build-static.mjs during a static build
+/.static-build-api-backup/
 
 # env files (only the example is committed)
 .env

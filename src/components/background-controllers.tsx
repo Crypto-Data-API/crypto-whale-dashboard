@@ -5,6 +5,7 @@ import { useAccess } from "@/hooks/use-access";
 import { streamManager } from "@/lib/cda/stream";
 import { describeEvent, eventTone, exceedsThreshold, matchesFeed, parseSymbolFilter } from "@/lib/events";
 import { EVENT_LABEL, isEventType } from "@/lib/cda/types";
+import { STATIC_SAMPLE } from "@/lib/deploy";
 import { fmtUsd } from "@/lib/format";
 import { beep, showNotification } from "@/lib/notify";
 import { useSettings } from "@/stores/settings";
@@ -15,14 +16,15 @@ import { restorePersistedEvents } from "@/stores/stream";
  * singleton StreamManager in sync with it.
  *   Pro / Pro Plus (or tier still unknown) -> live SSE
  *   free tier, no key, invalid key         -> 30-minute delayed polling
+ *   static build (GitHub Pages)            -> sample snapshot + replay
  */
 export function StreamController() {
   const access = useAccess();
   const apiKey = useSettings((s) => s.apiKey);
   const demoMode = useSettings((s) => s.demoMode);
   const gate = access.gate("pro");
-  const mode = gate === "loading" ? null : gate === "ok" ? "live" : "delayed";
-  const key = demoMode ? "" : apiKey;
+  const mode = STATIC_SAMPLE ? "sample" : gate === "loading" ? null : gate === "ok" ? "live" : "delayed";
+  const key = STATIC_SAMPLE || demoMode ? "" : apiKey;
 
   useEffect(() => {
     restorePersistedEvents();
