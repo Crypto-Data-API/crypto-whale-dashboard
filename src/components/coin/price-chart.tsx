@@ -2,41 +2,49 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  AreaSeries,
   BaselineSeries,
   CandlestickSeries,
   ColorType,
   CrosshairMode,
   HistogramSeries,
-  LineSeries,
+  LineStyle,
   TickMarkType,
   createChart,
   createSeriesMarkers,
   type IChartApi,
+  type IPriceLine,
   type ISeriesApi,
   type ISeriesMarkersPluginApi,
   type MouseEventParams,
+  type SeriesType,
   type Time,
   type UTCTimestamp,
 } from "lightweight-charts";
 import type { Candle } from "@/lib/cda/types";
-import { fmtCompact, fmtDateTime, fmtPrice, fmtUsd, priceDigits } from "@/lib/format";
-import { PALETTE, withAlpha } from "@/lib/palette";
+import { fmtDateTime, fmtUsd, priceDigits } from "@/lib/format";
+import { DECK, PALETTE, withAlpha } from "@/lib/palette";
 import { cn } from "@/lib/utils";
+import { CVD_PANE_HEIGHT } from "./chart-layout";
 import { toSeriesMarkers, type MarkerGroup } from "./markers";
 
 export interface PriceChartProps {
   bars: Candle[];
   groups: MarkerGroup[];
   cvd: { time: UTCTimestamp; value: number }[] | null;
-  /** Candlesticks or a close-price line. */
+  /** Candlesticks or a close-price area line. */
   style?: "candles" | "line";
   /** Changes when symbol/interval change, so the view is re-framed once. */
   resetKey: string;
+  /** Bar under the crosshair (null when the pointer leaves the chart). */
+  onHoverBar?: (bar: Candle | null) => void;
   className?: string;
 }
 
 /** Default viewport: the most recent N days, whatever the interval. */
 const VISIBLE_DAYS = 4;
+
+const HAIRLINE = "rgba(120,140,255,.1)";
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
@@ -78,21 +86,60 @@ function findBar(bars: Candle[], t: number): Candle | null {
   return null;
 }
 
-type Hover = { bar: Candle | null; group: MarkerGroup | null; x: number; y: number; w: number };
+/** The next/font family name behind --font-jetbrains (canvas cannot read CSS variables). */
+function monoFamily(): string {
+  if (typeof window === "undefined") return "monospace";
+  const v = getComputedStyle(document.documentElement).getPropertyValue("--font-jetbrains").trim();
+  return v ? `${v}, monospace` : "monospace";
+}
 
-/** Candles + volume + whale markers (+ optional CVD pane). Imperative lightweight-charts v5 wrapper. */
-export default function PriceChart({ bars, groups, cvd, style = "candles", resetKey, className }: PriceChartProps) {
+type Hover = { group: MarkerGroup; x: number; y: number; w: number };
+
+/** Candles / area line + volume + whale markers (+ optional CVD pane). Imperative lightweight-charts v5 wrapper. */
+export default function PriceChart({ bars, groups, cvd, style = "candles", resetKey, onHoverBar, className }: PriceChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
-  const lineRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const lineRef = useRef<ISeriesApi<"Area"> | null>(null);
   const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const cvdRef = useRef<ISeriesApi<"Baseline"> | null>(null);
   const markersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
+  const priceLineRef = useRef<{ series: ISeriesApi<SeriesType>; line: IPriceLine } | null>(null);
   const groupsRef = useRef<Map<string, MarkerGroup>>(new Map());
   const barsRef = useRef<Candle[]>([]);
+  const styleRef = useRef(style);
+  const hoverCbRef = useRef(onHoverBar);
   const framedKey = useRef<string | null>(null);
   const [hover, setHover] = useState<Hover | null>(null);
+  const [cvdTop, setCvdTop] = useState<number | null>(null);
+
+  useEffect(() => {
+    hoverCbRef.current = onHoverBar;
+  }, [onHoverBar]);
+
+  /** Dashed last-price line with a blue axis label, on whichever series is visible. */
+  const syncPriceLine = () => {
+    const target = styleRef.current === "line" ? lineRef.current : candleRef.current;
+    const last = barsRef.current[barsRef.current.length - 1];
+    const current = priceLineRef.current;
+    if (!target || !last) return;
+    if (current && current.series === target) {
+      current.line.applyOptions({ price: last.close });
+      return;
+    }
+    if (current) current.series.removePriceLine(current.line);
+    const line = target.createPriceLine({
+      price: last.close,
+      color: "rgba(232,236,255,.35)",
+      lineWidth: 1,
+      lineStyle: LineStyle.Dashed,
+      axisLabelVisible: true,
+      axisLabelColor: DECK.blue,
+      axisLabelTextColor: "#ffffff",
+      title: "",
+    });
+    priceLineRef.current = { series: target as ISeriesApi<SeriesType>, line };
+  };
 
   // Create the chart once.
   useEffect(() => {
@@ -102,32 +149,43 @@ export default function PriceChart({ bars, groups, cvd, style = "candles", reset
       autoSize: true,
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
-        textColor: PALETTE.textMuted,
-        fontSize: 11,
-        panes: { separatorColor: PALETTE.grid, separatorHoverColor: withAlpha(PALETTE.transfer, 0.25), enableResize: true },
+        textColor: DECK.dim,
+        fontSize: 10.5,
+        fontFamily: monoFamily(),
+        panes: { separatorColor: HAIRLINE, separatorHoverColor: withAlpha(DECK.long, 0.25), enableResize: true },
       },
-      grid: { vertLines: { color: PALETTE.grid }, horzLines: { color: PALETTE.grid } },
-      rightPriceScale: { borderColor: PALETTE.axis },
-      timeScale: { borderColor: PALETTE.axis, timeVisible: true, secondsVisible: false, rightOffset: 6, tickMarkFormatter },
-      crosshair: { mode: CrosshairMode.Normal },
+      grid: { vertLines: { color: PALETTE.gridVert }, horzLines: { color: PALETTE.grid } },
+      rightPriceScale: { borderColor: HAIRLINE, minimumWidth: 74 },
+      timeScale: { borderColor: HAIRLINE, timeVisible: true, secondsVisible: false, rightOffset: 6, tickMarkFormatter },
+      crosshair: {
+        mode: CrosshairMode.Normal,
+        vertLine: { color: "rgba(0,245,212,.5)", width: 1, style: LineStyle.Solid, labelBackgroundColor: "#0f6f66" },
+        horzLine: { color: "rgba(0,245,212,.3)", width: 1, style: LineStyle.Dashed, labelBackgroundColor: "#0f6f66" },
+      },
       localization: { timeFormatter },
     });
     const candles = chart.addSeries(CandlestickSeries, {
-      upColor: PALETTE.long,
-      downColor: PALETTE.short,
-      borderUpColor: PALETTE.long,
-      borderDownColor: PALETTE.short,
-      wickUpColor: PALETTE.long,
-      wickDownColor: PALETTE.short,
+      upColor: DECK.long,
+      downColor: DECK.short,
+      borderUpColor: DECK.long,
+      borderDownColor: DECK.short,
+      wickUpColor: DECK.long,
+      wickDownColor: DECK.short,
+      priceLineVisible: false,
+      lastValueVisible: false,
     });
-    candles.priceScale().applyOptions({ scaleMargins: { top: 0.08, bottom: 0.22 } });
-    // Close-price line on the same scale; shown instead of candles in "line" style.
-    const line = chart.addSeries(LineSeries, {
-      color: PALETTE.transfer,
+    candles.priceScale().applyOptions({ scaleMargins: { top: 0.08, bottom: 0.2 } });
+    // Close-price area on the same scale; shown instead of candles in "line" style.
+    const line = chart.addSeries(AreaSeries, {
+      lineColor: DECK.blueSoft,
       lineWidth: 2,
-      priceLineVisible: true,
-      lastValueVisible: true,
+      topColor: "rgba(77,124,255,.28)",
+      bottomColor: "rgba(77,124,255,0)",
+      priceLineVisible: false,
+      lastValueVisible: false,
       crosshairMarkerVisible: true,
+      crosshairMarkerBackgroundColor: DECK.blueSoft,
+      crosshairMarkerBorderColor: "#ffffff",
       visible: false,
     });
     const volume = chart.addSeries(HistogramSeries, {
@@ -136,19 +194,28 @@ export default function PriceChart({ bars, groups, cvd, style = "candles", reset
       lastValueVisible: false,
       priceLineVisible: false,
     });
-    volume.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+    volume.priceScale().applyOptions({ scaleMargins: { top: 0.84, bottom: 0 } });
     const markers = createSeriesMarkers(candles, []);
 
     const onMove = (param: MouseEventParams<Time>) => {
       if (!param.point || param.time === undefined || typeof param.time !== "number") {
         setHover(null);
+        hoverCbRef.current?.(null);
         return;
       }
+      hoverCbRef.current?.(findBar(barsRef.current, param.time));
       const id = param.hoveredInfo?.objectId;
       const group = typeof id === "string" ? (groupsRef.current.get(id) ?? null) : null;
-      setHover({ bar: findBar(barsRef.current, param.time), group, x: param.point.x, y: param.point.y, w: el.clientWidth });
+      setHover(group ? { group, x: param.point.x, y: param.point.y, w: el.clientWidth } : null);
     };
     chart.subscribeCrosshairMove(onMove);
+    // Keep the CVD label on its pane after the separator is dragged.
+    const remeasure = () => {
+      if (!cvdRef.current) return;
+      const pane = chart.panes()[1]?.getHTMLElement();
+      setCvdTop(pane ? pane.getBoundingClientRect().top - el.getBoundingClientRect().top : null);
+    };
+    el.addEventListener("pointerup", remeasure);
 
     chartRef.current = chart;
     candleRef.current = candles;
@@ -157,6 +224,7 @@ export default function PriceChart({ bars, groups, cvd, style = "candles", reset
     markersRef.current = markers;
     return () => {
       chart.unsubscribeCrosshairMove(onMove);
+      el.removeEventListener("pointerup", remeasure);
       markersRef.current?.detach();
       chart.remove();
       chartRef.current = null;
@@ -165,6 +233,7 @@ export default function PriceChart({ bars, groups, cvd, style = "candles", reset
       volumeRef.current = null;
       cvdRef.current = null;
       markersRef.current = null;
+      priceLineRef.current = null;
       framedKey.current = null;
     };
   }, []);
@@ -182,15 +251,17 @@ export default function PriceChart({ bars, groups, cvd, style = "candles", reset
       bars.map((b) => ({
         time: b.time as UTCTimestamp,
         value: b.volume,
-        color: withAlpha(b.close >= b.open ? PALETTE.long : PALETTE.short, 0.35),
+        color: b.close >= b.open ? "rgba(0,245,212,.22)" : "rgba(255,45,117,.22)",
       })),
     );
     const last = bars[bars.length - 1];
     if (last) {
       const precision = priceDigits(Math.abs(last.close));
-      candles.applyOptions({ priceFormat: { type: "price", precision, minMove: 1 / 10 ** precision } });
-      lineRef.current?.applyOptions({ priceFormat: { type: "price", precision, minMove: 1 / 10 ** precision } });
+      const priceFormat = { type: "price" as const, precision, minMove: 1 / 10 ** precision };
+      candles.applyOptions({ priceFormat });
+      lineRef.current?.applyOptions({ priceFormat });
     }
+    syncPriceLine();
     if (bars.length && framedKey.current !== resetKey) {
       framedKey.current = resetKey;
       const cutoff = (bars[bars.length - 1].time as number) - VISIBLE_DAYS * 86_400;
@@ -202,16 +273,18 @@ export default function PriceChart({ bars, groups, cvd, style = "candles", reset
     }
   }, [bars, resetKey]);
 
-  // Chart style: toggle series visibility and move the markers to the visible one.
+  // Chart style: toggle series visibility and move markers + price line to the visible one.
   useEffect(() => {
     const candles = candleRef.current;
     const line = lineRef.current;
     if (!candles || !line) return;
+    styleRef.current = style;
     const isLine = style === "line";
     candles.applyOptions({ visible: !isLine });
     line.applyOptions({ visible: isLine });
     markersRef.current?.detach();
     markersRef.current = createSeriesMarkers(isLine ? line : candles, toSeriesMarkers(groups));
+    syncPriceLine();
     // `groups` is intentionally read, not depended on: the markers effect below handles updates.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [style]);
@@ -226,71 +299,57 @@ export default function PriceChart({ bars, groups, cvd, style = "candles", reset
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
+    let frame = 0;
     if (cvd && cvd.length) {
       if (!cvdRef.current) {
-        cvdRef.current = chart.addSeries(
+        const series = chart.addSeries(
           BaselineSeries,
           {
             baseValue: { type: "price", price: 0 },
-            topLineColor: PALETTE.long,
-            topFillColor1: withAlpha(PALETTE.long, 0.18),
-            topFillColor2: withAlpha(PALETTE.long, 0.02),
-            bottomLineColor: PALETTE.short,
-            bottomFillColor1: withAlpha(PALETTE.short, 0.02),
-            bottomFillColor2: withAlpha(PALETTE.short, 0.18),
+            topLineColor: DECK.long,
+            topFillColor1: withAlpha(DECK.long, 0.2),
+            topFillColor2: withAlpha(DECK.long, 0.02),
+            bottomLineColor: DECK.short,
+            bottomFillColor1: withAlpha(DECK.short, 0.02),
+            bottomFillColor2: withAlpha(DECK.short, 0.2),
             lineWidth: 2,
             priceLineVisible: false,
             priceFormat: { type: "custom", formatter: (v: number) => fmtUsd(v), minMove: 1 },
           },
           1,
         );
-        chart.panes()[1]?.setHeight(110);
+        series.createPriceLine({ price: 0, color: "rgba(138,144,180,.25)", lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false, title: "" });
+        cvdRef.current = series;
+        chart.panes()[1]?.setHeight(CVD_PANE_HEIGHT);
       }
       cvdRef.current.setData(cvd);
+      // Measure after the chart has laid out the new pane (two frames).
+      frame = requestAnimationFrame(() => {
+        frame = requestAnimationFrame(() => {
+          const pane = chart.panes()[1]?.getHTMLElement();
+          const box = containerRef.current?.getBoundingClientRect();
+          setCvdTop(pane && box ? pane.getBoundingClientRect().top - box.top : null);
+        });
+      });
     } else if (cvdRef.current) {
       chart.removeSeries(cvdRef.current);
       cvdRef.current = null;
+      frame = requestAnimationFrame(() => setCvdTop(null));
     }
+    return () => cancelAnimationFrame(frame);
   }, [cvd]);
-
-  const shown = hover?.bar ?? bars[bars.length - 1] ?? null;
-  const prev = shown ? bars[bars.findIndex((b) => b.time === shown.time) - 1] : undefined;
-  const change = shown && prev ? ((shown.close - prev.close) / prev.close) * 100 : null;
 
   return (
     <div className={cn("relative h-full w-full", className)}>
       <div ref={containerRef} className="absolute inset-0" />
-      {shown && (
-        <div className="pointer-events-none absolute top-1 left-2 z-10 flex flex-wrap gap-x-3 text-[11px] text-muted-foreground">
-          <span className="tabular">
-            O <span className="text-foreground">{fmtPrice(shown.open)}</span>
-          </span>
-          <span className="tabular">
-            H <span className="text-foreground">{fmtPrice(shown.high)}</span>
-          </span>
-          <span className="tabular">
-            L <span className="text-foreground">{fmtPrice(shown.low)}</span>
-          </span>
-          <span className="tabular">
-            C <span className="text-foreground">{fmtPrice(shown.close)}</span>
-          </span>
-          {change !== null && (
-            <span className="tabular">
-              <span className={cn("mr-0.5 inline-block size-1.5 rounded-full align-middle", change >= 0 ? "bg-long" : "bg-short")} />
-              <span className="text-foreground">
-                {change >= 0 ? "+" : ""}
-                {change.toFixed(2)}%
-              </span>
-            </span>
-          )}
-          <span className="tabular">
-            Vol <span className="text-foreground">{fmtCompact(shown.volume)}</span>
-          </span>
+      {cvdTop !== null && (
+        <div className="pointer-events-none absolute left-2 z-10 font-mono text-[10px] tracking-[.12em] text-ink-dim" style={{ top: cvdTop + 6 }}>
+          CVD · TAKER DELTA
         </div>
       )}
-      {hover?.group && (
+      {hover && (
         <div
-          className="pointer-events-none absolute z-20 w-60 rounded-md border border-border bg-popover px-3 py-2 text-xs shadow-xl"
+          className="pointer-events-none absolute z-20 w-64 rounded-[12px] border border-iris/16 bg-[#0b0d1a]/95 px-3 py-2.5 text-[12px] shadow-[0_18px_40px_rgba(0,0,0,.55)] backdrop-blur-md"
           style={{
             left: hover.x,
             top: hover.y,
@@ -315,33 +374,35 @@ function MarkerTooltip({ group }: { group: MarkerGroup }) {
           ? "Big taker buying"
           : "Big taker selling"
         : group.source === "liquidations"
-        ? `${group.dir === "long" ? "Long" : "Short"} liquidations`
-        : group.dir === "inflow"
-          ? "Exchange inflow"
-          : "Exchange outflow";
-  const dot = group.source === "liquidations" ? "bg-liq" : group.dir === "buy" || group.dir === "outflow" ? "bg-long" : "bg-short";
+          ? `${group.dir === "long" ? "Long" : "Short"} liquidations`
+          : group.dir === "inflow"
+            ? "Exchange inflow"
+            : "Exchange outflow";
+  const color = group.source === "liquidations" ? DECK.amber : group.dir === "buy" || group.dir === "outflow" ? DECK.long : DECK.short;
   return (
     <>
-      <div className="mb-1 flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5 font-medium">
-          <span className={cn("size-2 rounded-full", dot)} />
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5 font-semibold">
+          <span className="size-2 rounded-full" style={{ background: color, boxShadow: `0 0 8px ${color}` }} />
           {title}
         </span>
-        <span className="tabular font-semibold">{fmtUsd(group.usd)}</span>
+        <span className="font-mono font-semibold" style={{ color }}>
+          {fmtUsd(group.usd)}
+        </span>
       </div>
-      <ul className="flex flex-col gap-0.5">
+      <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
         {group.items.slice(-6).map((it) => (
           <li key={it.key} className="flex justify-between gap-2">
-            <span className="min-w-0 truncate text-muted-foreground">
-              <span className="text-foreground">{it.label.charAt(0).toUpperCase() + it.label.slice(1)}</span>
+            <span className="min-w-0 truncate text-ink-muted">
+              <span className="text-ink">{it.label.charAt(0).toUpperCase() + it.label.slice(1)}</span>
               {it.detail ? ` · ${it.detail}` : ""}
             </span>
-            <span className="tabular shrink-0">{fmtUsd(it.usd)}</span>
+            <span className="shrink-0 font-mono">{fmtUsd(it.usd)}</span>
           </li>
         ))}
       </ul>
-      {group.items.length > 6 && <p className="mt-0.5 text-muted-foreground">+{group.items.length - 6} more</p>}
-      <p className="mt-1 text-[10px] text-muted-foreground">{fmtDateTime(group.time * 1000)}</p>
+      {group.items.length > 6 && <p className="m-0 mt-0.5 text-ink-muted">+{group.items.length - 6} more</p>}
+      <p className="m-0 mt-1 font-mono text-[10.5px] text-ink-dim">{fmtDateTime(group.time * 1000)}</p>
     </>
   );
 }

@@ -2,7 +2,7 @@ import type { SeriesMarker, UTCTimestamp } from "lightweight-charts";
 import type { Candle, CdaEvent, ExchangeFlowSpike, TradeFlowBucket } from "@/lib/cda/types";
 import { positionFlow, symbolMatches } from "@/lib/events";
 import { fmtUsd, shortAddress } from "@/lib/format";
-import { PALETTE } from "@/lib/palette";
+import { PALETTE, withAlpha } from "@/lib/palette";
 
 export type MarkerSource = "positions" | "trades" | "liquidations" | "flows";
 
@@ -23,7 +23,11 @@ export interface MarkerItem {
   usd: number;
   label: string;
   detail: string;
+  /** Short headline for activity lists ("Whale long opened", "Big taker sell"). */
+  title: string;
 }
+
+const POSITION_VERB: Record<string, string> = { entry: "opened", open: "opened", exit: "closed", close: "closed", increase: "increased", decrease: "reduced" };
 
 /** Aggregated marker shown on one bar. */
 export interface MarkerGroup {
@@ -55,6 +59,7 @@ export function collectMarkerItems(symbol: string, events: CdaEvent[], spikes: E
         ts: e.ts,
         usd,
         label: `${action || "change"} ${e.side ?? ""}`.trim(),
+        title: `Whale ${(e.side ?? "position").toLowerCase()} ${POSITION_VERB[action] ?? "changed"}`,
         detail: [e.address ? shortAddress(e.address) : null, typeof e.change_pct === "number" ? `${e.change_pct > 0 ? "+" : ""}${e.change_pct.toFixed(1)}%` : null]
           .filter(Boolean)
           .join(" · "),
@@ -68,6 +73,7 @@ export function collectMarkerItems(symbol: string, events: CdaEvent[], spikes: E
         ts: e.ts,
         usd,
         label: `${side || "?"} liquidated`,
+        title: side === "short" ? "Short liquidated" : side === "long" ? "Long liquidated" : "Liquidation",
         detail: [e.venue ?? null, typeof e.px === "number" ? `@ ${e.px}` : null].filter(Boolean).join(" · "),
       });
     } else if (e.type === "whale_transfer") {
@@ -82,6 +88,7 @@ export function collectMarkerItems(symbol: string, events: CdaEvent[], spikes: E
         ts: e.ts,
         usd,
         label: `${dir} ${dir === "inflow" ? "to" : "from"} ${e.exchange ?? "exchange"}`,
+        title: dir === "inflow" ? "Exchange inflow" : "Exchange outflow",
         detail: e.chain ? `on ${e.chain}` : "",
       });
     }
@@ -102,6 +109,7 @@ export function collectMarkerItems(symbol: string, events: CdaEvent[], spikes: E
       ts: s.ts,
       usd,
       label: `${dir} ${dir === "inflow" ? "to" : "from"} ${s.exchange ?? "exchange"}`,
+      title: dir === "inflow" ? "Exchange inflow" : "Exchange outflow",
       detail: s.chain ? `on ${s.chain}` : "",
     });
   }
@@ -137,6 +145,7 @@ export function tradeFlowItems(symbol: string, flow: TradeFlowBucket[]): MarkerI
       ts: b.time,
       usd,
       label: `${buy ? "taker buying" : "taker selling"} ${symbol}`,
+      title: buy ? "Big taker buy" : "Big taker sell",
       detail,
     });
   }
@@ -214,7 +223,7 @@ export function toSeriesMarkers(groups: MarkerGroup[]): SeriesMarker<UTCTimestam
         time,
         position: buy ? "belowBar" : "aboveBar",
         shape: "circle",
-        color: buy ? PALETTE.long : PALETTE.short,
+        color: withAlpha(buy ? PALETTE.long : PALETTE.short, 0.75),
         text: g.usd >= 250_000 ? fmtUsd(g.usd) : undefined,
         size: Math.max(0.7, size * 0.9),
       };
