@@ -5,6 +5,8 @@ A real-time dashboard for tracking crypto whale activity, powered by [CryptoData
 ## What it does
 
 - **Whale Radar** – see which coins Hyperliquid whales are leaning long or short, sized by notional and ranked against their 30-day norm.
+- **Whale Exposure** – every coin's whale gross, long/short split, net, net ex-MM and 30-day percentile in one sortable table.
+- **Whale Accounts** – tracked Hyperliquid whale wallets with their trading style, PnL and open positions.
 - **Whale Alerts** – a live feed of whale position changes, on-chain exchange transfers, liquidations, OI and price moves, with sound and browser notifications.
 - **Coin charts** – click any coin to open its price chart with whale buys/sells, liquidations and exchange flows plotted on the candles, plus a CVD pane.
 - **Coin context** – whale positioning, funding and open interest, regime-model probabilities and news next to the chart.
@@ -21,7 +23,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. If `.env` has `CDA_API_KEY`, everything loads through that server key and the header shows "Using server key".
+Open http://localhost:3000. If `.env` has `CDA_API_KEY`, everything loads through that server key and the sidebar shows "Using server key".
 Otherwise go to **Settings**, paste your CryptoDataApi key and press **Test & Save**.
 The key is checked against `GET /auth/keys/me`, and the tier badge, rate-limit meter and features update immediately. A key saved in Settings always takes priority over the server key.
 
@@ -49,7 +51,7 @@ CDA_API_KEY=cdk_live_...
 
 ### Sample data (no key at all)
 
-With no key in Settings and no server key, the proxy answers from JSON snapshots in `src/data/sample/` so the UI is never empty: whale positioning, the wallet leaderboard with positions, recent alerts, exchange-flow spikes, and full coin pages for DOGE, BTC, ETH and SOL (candles on every interval plus three days of 1-minute trade flow for the big buy / sell dots). Timestamps are shifted so the snapshot always ends "now". The header shows a **Sample data** badge, and the moment a key is saved the proxy switches to live data. **Demo mode** in Settings forces the snapshot even when a server key exists.
+With no key in Settings and no server key, the proxy answers from JSON snapshots in `src/data/sample/` so the UI is never empty: whale positioning, the wallet leaderboard with positions, recent alerts, exchange-flow spikes, and full coin pages for DOGE, BTC, ETH and SOL (candles on every interval plus three days of 1-minute trade flow for the big buy / sell dots). Timestamps are shifted so the snapshot always ends "now". The sidebar shows a **SAMPLE** badge, and the moment a key is saved the proxy switches to live data. **Demo mode** in Settings forces the snapshot even when a server key exists.
 
 Refresh the snapshot with your own key (about 50 requests):
 
@@ -88,12 +90,15 @@ Browser ── EventSource + cookie ─▶ /api/cda/stream ───X-API-Key─
 src/
   app/                    pages + API route handlers
   components/
-    layout/               sidebar, header, coin search, status widgets
-    radar/                radar SVG, whale table, stats, history chart
+    deck/                 WhaleDeck design components (panel, segmented control, KPI tile, coin logo, icons)
+    layout/               sidebar, coin search, stream / tier / API usage widgets
+    radar/                radar scope, selected-coin card, KPIs, history chart
+    exposure/             Whale Exposure table
+    accounts/             Whale Accounts table
     alerts/               live feed, event rows, exchange-flow spikes
     coin/                 lightweight-charts wrapper, markers, side cards
     settings/             settings page
-    common/               gate notices, stat tile, stubs
+    common/               gate notices, error states
     ui/                   shadcn/ui components
   hooks/                  access/tier gating, TanStack Query hooks
   lib/cda/                client, endpoints, parsers, types, stream manager
