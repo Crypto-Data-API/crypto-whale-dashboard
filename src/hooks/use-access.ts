@@ -33,7 +33,7 @@ export interface Access {
   authError: CdaError | null;
   /** The server has CDA_API_KEY configured (from GET /api/cda/_status). */
   hasServerKey: boolean;
-  /** The server ships bundled sample snapshots (src/data/sample). */
+  /** Bundled sample snapshots (public/sample) are available. */
   hasSampleData: boolean;
   gate: (req: Requirement) => Gate;
 }

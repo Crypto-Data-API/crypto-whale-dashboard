@@ -10,6 +10,11 @@ const nextConfig: NextConfig = {
   // other than localhost, which leaves the client stuck before it mounts.
   // Allow the loopback aliases and LAN hosts people typically open in dev.
   allowedDevOrigins: ["127.0.0.1", "[::1]", "*.local", "100.73.123.29"],
+  // The proxy reads the sample snapshots with fs at runtime; make sure
+  // serverless bundles (Vercel) include them.
+  outputFileTracingIncludes: {
+    "/api/cda/**": ["./public/sample/**/*"],
+  },
   turbopack: {
     // A package-lock.json in a parent folder would otherwise be picked as the root.
     root: path.join(__dirname),

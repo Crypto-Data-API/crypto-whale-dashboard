@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
- * Captures a snapshot of real CryptoDataApi responses into src/data/sample/.
+ * Captures a snapshot of real CryptoDataApi responses into public/sample/.
  * The dashboard serves these when no API key is configured, so first-time
  * visitors see a populated UI. Once a key is added, live data replaces them.
+ * The static GitHub Pages build fetches the same files from /sample/*.json.
  *
  * Usage:  node scripts/capture-sample-data.mjs            (reads CDA_API_KEY from .env)
  *         CDA_API_KEY=... node scripts/capture-sample-data.mjs
@@ -14,7 +15,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const OUT = path.join(ROOT, "src", "data", "sample");
+const OUT = path.join(ROOT, "public", "sample");
 const BASE = process.env.CDA_API_BASE || "https://cryptodataapi.com/api/v1";
 const COINS = ["DOGE", "BTC", "ETH", "SOL"];
 const INTERVALS = { "5m": 1000, "15m": 1000, "1h": 1000, "4h": 500, "1d": 365 };
