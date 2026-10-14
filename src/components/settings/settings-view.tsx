@@ -19,7 +19,7 @@ import { getKeyInfo } from "@/lib/cda/endpoints";
 import { CHART_INTERVALS, EVENT_LABEL, EVENT_TYPES, TIER_LABEL, type ChartInterval, type EventType, type KeyInfo } from "@/lib/cda/types";
 import { fmtInt } from "@/lib/format";
 import { requestNotificationPermission, unlockAudio } from "@/lib/notify";
-import { MIN_REFRESH, exportSettings, useSettings, type RefreshSettings } from "@/stores/settings";
+import { MIN_REFRESH, exportSettings, useSettings, type RefreshSettings, type ChartStyle } from "@/stores/settings";
 import { useRateLimit } from "@/stores/rate-limit";
 
 function maskKey(key: string): string {
@@ -305,6 +305,8 @@ const REFRESH_META: { key: keyof RefreshSettings; label: string; hint: string }[
 function ChartRefreshCard() {
   const defaultInterval = useSettings((s) => s.defaultInterval);
   const setDefaultInterval = useSettings((s) => s.setDefaultInterval);
+  const chartStyle = useSettings((s) => s.chartStyle);
+  const setChartStyle = useSettings((s) => s.setChartStyle);
   const refresh = useSettings((s) => s.refresh);
   const setRefresh = useSettings((s) => s.setRefresh);
   // Rough budget for a session with the radar + one coin page open.
@@ -316,6 +318,18 @@ function ChartRefreshCard() {
         <CardDescription>Poll intervals in seconds. Minimums protect your rate limit; the live stream does not count against polling.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <Label>Chart style</Label>
+          <Select value={chartStyle} onValueChange={(v) => setChartStyle(v as ChartStyle)}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="candles">Candles</SelectItem>
+              <SelectItem value="line">Line</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div className="flex flex-col gap-1.5">
           <Label>Default chart interval</Label>
           <Select value={defaultInterval} onValueChange={(v) => setDefaultInterval(v as ChartInterval)}>

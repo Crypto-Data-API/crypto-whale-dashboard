@@ -57,12 +57,16 @@ export const DEFAULT_FEED: FeedPrefs = {
   notifications: false,
 };
 
+export type ChartStyle = "candles" | "line";
+export const CHART_STYLES: ChartStyle[] = ["candles", "line"];
+
 export interface SettingsState {
   apiKey: string;
   /** Result of the last successful /auth/keys/me for `apiKey`. */
   keyInfo: KeyInfo | null;
   demoMode: boolean;
   defaultInterval: ChartInterval;
+  chartStyle: ChartStyle;
   refresh: RefreshSettings;
   thresholds: Thresholds;
   feed: FeedPrefs;
@@ -72,6 +76,7 @@ export interface SettingsState {
   clearKey: () => void;
   setDemoMode: (on: boolean) => void;
   setDefaultInterval: (interval: ChartInterval) => void;
+  setChartStyle: (style: ChartStyle) => void;
   setRefresh: (patch: Partial<RefreshSettings>) => void;
   setThreshold: (type: EventType, value: number) => void;
   setFeed: (patch: Partial<FeedPrefs>) => void;
@@ -88,6 +93,7 @@ export type ExportedSettings = {
     apiKey?: string;
     demoMode: boolean;
     defaultInterval: ChartInterval;
+    chartStyle?: ChartStyle;
     refresh: RefreshSettings;
     thresholds: Thresholds;
     feed: FeedPrefs;
@@ -140,6 +146,7 @@ export const useSettings = create<SettingsState>()(
       keyInfo: null,
       demoMode: false,
       defaultInterval: "1h",
+      chartStyle: "candles",
       refresh: DEFAULT_REFRESH,
       thresholds: DEFAULT_THRESHOLDS,
       feed: DEFAULT_FEED,
@@ -149,6 +156,7 @@ export const useSettings = create<SettingsState>()(
       clearKey: () => set({ apiKey: "", keyInfo: null }),
       setDemoMode: (on) => set({ demoMode: on }),
       setDefaultInterval: (interval) => set({ defaultInterval: interval }),
+      setChartStyle: (style) => set({ chartStyle: style }),
       setRefresh: (patch) => set({ refresh: clampRefresh(patch, get().refresh) }),
       setThreshold: (type, value) =>
         set({ thresholds: { ...get().thresholds, [type]: Number.isFinite(value) && value >= 0 ? value : 0 } }),
@@ -169,6 +177,9 @@ export const useSettings = create<SettingsState>()(
         if (typeof s.defaultInterval === "string" && (CHART_INTERVALS as string[]).includes(s.defaultInterval)) {
           patch.defaultInterval = s.defaultInterval as ChartInterval;
         }
+        if (typeof s.chartStyle === "string" && (CHART_STYLES as string[]).includes(s.chartStyle)) {
+          patch.chartStyle = s.chartStyle as ChartStyle;
+        }
         let keyNote = "";
         if (typeof s.apiKey === "string" && s.apiKey.trim().length > 8) {
           patch.apiKey = s.apiKey.trim();
@@ -182,6 +193,7 @@ export const useSettings = create<SettingsState>()(
       resetPreferences: () =>
         set({
           defaultInterval: "1h",
+          chartStyle: "candles",
           refresh: DEFAULT_REFRESH,
           thresholds: DEFAULT_THRESHOLDS,
           feed: DEFAULT_FEED,
@@ -198,6 +210,7 @@ export const useSettings = create<SettingsState>()(
         keyInfo: s.keyInfo,
         demoMode: s.demoMode,
         defaultInterval: s.defaultInterval,
+        chartStyle: s.chartStyle,
         refresh: s.refresh,
         thresholds: s.thresholds,
         feed: s.feed,
@@ -214,6 +227,7 @@ export const useSettings = create<SettingsState>()(
             typeof p.defaultInterval === "string" && (CHART_INTERVALS as string[]).includes(p.defaultInterval)
               ? p.defaultInterval
               : current.defaultInterval,
+          chartStyle: p.chartStyle === "line" || p.chartStyle === "candles" ? p.chartStyle : current.chartStyle,
           refresh: clampRefresh(p.refresh ?? {}, current.refresh),
           thresholds: sanitizeThresholds(p.thresholds, current.thresholds),
           feed: sanitizeFeed(p.feed, current.feed),
@@ -233,6 +247,7 @@ export function exportSettings(includeKey: boolean): ExportedSettings {
       ...(includeKey && s.apiKey ? { apiKey: s.apiKey } : {}),
       demoMode: s.demoMode,
       defaultInterval: s.defaultInterval,
+      chartStyle: s.chartStyle,
       refresh: s.refresh,
       thresholds: s.thresholds,
       feed: s.feed,

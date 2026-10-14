@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
+import { CandlestickChart, LineChart } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { ErrorState, GateNotice } from "@/components/common/gate-notice";
 import { PageHeader } from "@/components/common/page-header";
@@ -13,7 +14,7 @@ import { CHART_INTERVALS, INTERVAL_SECONDS, type Candle, type CdaEvent, type Cha
 import { symbolMatches } from "@/lib/events";
 import { fmtClock, fmtPct, fmtPrice, fmtUsd, relTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { useSettings } from "@/stores/settings";
+import { useSettings, type ChartStyle } from "@/stores/settings";
 import { useStream } from "@/stores/stream";
 import { MARKER_SOURCES, collectMarkerItems, cvdByBar, groupMarkers, tradeFlowItems, type MarkerItem, type MarkerSource } from "./markers";
 import { FundingOiCard, NewsCard, QuantCard, WhaleSummaryCard } from "./side-cards";
@@ -76,6 +77,34 @@ function IntervalSwitch({ value, onChange }: { value: ChartInterval; onChange: (
   );
 }
 
+function StyleSwitch({ value, onChange }: { value: ChartStyle; onChange: (v: ChartStyle) => void }) {
+  const opts = [
+    { id: "candles", label: "Candles", Icon: CandlestickChart },
+    { id: "line", label: "Line", Icon: LineChart },
+  ] as const;
+  return (
+    <div className="flex rounded-md border border-input p-0.5 text-xs" role="radiogroup" aria-label="Chart style">
+      {opts.map(({ id, label, Icon }) => (
+        <button
+          key={id}
+          type="button"
+          role="radio"
+          aria-checked={value === id}
+          title={label}
+          onClick={() => onChange(id)}
+          className={cn(
+            "flex items-center gap-1 rounded px-2 py-1",
+            value === id ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <Icon className="size-3.5" aria-hidden />
+          <span className="hidden sm:inline">{label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function sentence(s: string): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
@@ -89,6 +118,8 @@ function activityLabel(it: MarkerItem): { title: string; tone: "long" | "short" 
 
 export function CoinView({ symbol }: { symbol: string }) {
   const defaultInterval = useSettings((s) => s.defaultInterval);
+  const chartStyle = useSettings((s) => s.chartStyle);
+  const setChartStyle = useSettings((s) => s.setChartStyle);
   const [picked, setPicked] = useState<ChartInterval | null>(null);
   const interval = picked ?? defaultInterval;
   const intervalSec = INTERVAL_SECONDS[interval];
@@ -160,7 +191,12 @@ export function CoinView({ symbol }: { symbol: string }) {
           </span>
         }
         description={sourceLabel ? `${sourceLabel} · whale trades, liquidations and exchange flows on the chart` : "Price chart with whale activity"}
-        actions={<IntervalSwitch value={interval} onChange={setPicked} />}
+        actions={
+          <>
+            <StyleSwitch value={chartStyle} onChange={setChartStyle} />
+            <IntervalSwitch value={interval} onChange={setPicked} />
+          </>
+        }
       />
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -213,7 +249,7 @@ export function CoinView({ symbol }: { symbol: string }) {
                     )}
                   </div>
                 ) : (
-                  <PriceChart bars={bars} groups={groups} cvd={cvd} resetKey={`${symbol}:${interval}:${candles.data?.source}`} />
+                  <PriceChart bars={bars} groups={groups} cvd={cvd} style={chartStyle} resetKey={`${symbol}:${interval}:${candles.data?.source}`} />
                 )}
               </div>
 

@@ -7,6 +7,7 @@ import {
   ColorType,
   CrosshairMode,
   HistogramSeries,
+  LineSeries,
   TickMarkType,
   createChart,
   createSeriesMarkers,
@@ -27,6 +28,8 @@ export interface PriceChartProps {
   bars: Candle[];
   groups: MarkerGroup[];
   cvd: { time: UTCTimestamp; value: number }[] | null;
+  /** Candlesticks or a close-price line. */
+  style?: "candles" | "line";
   /** Changes when symbol/interval change, so the view is re-framed once. */
   resetKey: string;
   className?: string;
@@ -78,10 +81,11 @@ function findBar(bars: Candle[], t: number): Candle | null {
 type Hover = { bar: Candle | null; group: MarkerGroup | null; x: number; y: number; w: number };
 
 /** Candles + volume + whale markers (+ optional CVD pane). Imperative lightweight-charts v5 wrapper. */
-export default function PriceChart({ bars, groups, cvd, resetKey, className }: PriceChartProps) {
+export default function PriceChart({ bars, groups, cvd, style = "candles", resetKey, className }: PriceChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const lineRef = useRef<ISeriesApi<"Line"> | null>(null);
   const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const cvdRef = useRef<ISeriesApi<"Baseline"> | null>(null);
   const markersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
@@ -117,6 +121,15 @@ export default function PriceChart({ bars, groups, cvd, resetKey, className }: P
       wickDownColor: PALETTE.short,
     });
     candles.priceScale().applyOptions({ scaleMargins: { top: 0.08, bottom: 0.22 } });
+    // Close-price line on the same scale; shown instead of candles in "line" style.
+    const line = chart.addSeries(LineSeries, {
+      color: PALETTE.transfer,
+      lineWidth: 2,
+      priceLineVisible: true,
+      lastValueVisible: true,
+      crosshairMarkerVisible: true,
+      visible: false,
+    });
     const volume = chart.addSeries(HistogramSeries, {
       priceFormat: { type: "volume" },
       priceScaleId: "vol",
@@ -139,14 +152,16 @@ export default function PriceChart({ bars, groups, cvd, resetKey, className }: P
 
     chartRef.current = chart;
     candleRef.current = candles;
+    lineRef.current = line;
     volumeRef.current = volume;
     markersRef.current = markers;
     return () => {
       chart.unsubscribeCrosshairMove(onMove);
-      markers.detach();
+      markersRef.current?.detach();
       chart.remove();
       chartRef.current = null;
       candleRef.current = null;
+      lineRef.current = null;
       volumeRef.current = null;
       cvdRef.current = null;
       markersRef.current = null;
@@ -162,6 +177,7 @@ export default function PriceChart({ bars, groups, cvd, resetKey, className }: P
     if (!chart || !candles || !volume) return;
     barsRef.current = bars;
     candles.setData(bars.map((b) => ({ time: b.time as UTCTimestamp, open: b.open, high: b.high, low: b.low, close: b.close })));
+    lineRef.current?.setData(bars.map((b) => ({ time: b.time as UTCTimestamp, value: b.close })));
     volume.setData(
       bars.map((b) => ({
         time: b.time as UTCTimestamp,
@@ -173,6 +189,7 @@ export default function PriceChart({ bars, groups, cvd, resetKey, className }: P
     if (last) {
       const precision = priceDigits(Math.abs(last.close));
       candles.applyOptions({ priceFormat: { type: "price", precision, minMove: 1 / 10 ** precision } });
+      lineRef.current?.applyOptions({ priceFormat: { type: "price", precision, minMove: 1 / 10 ** precision } });
     }
     if (bars.length && framedKey.current !== resetKey) {
       framedKey.current = resetKey;
@@ -184,6 +201,20 @@ export default function PriceChart({ bars, groups, cvd, resetKey, className }: P
       chart.timeScale().setVisibleLogicalRange({ from: first, to: bars.length + 4 });
     }
   }, [bars, resetKey]);
+
+  // Chart style: toggle series visibility and move the markers to the visible one.
+  useEffect(() => {
+    const candles = candleRef.current;
+    const line = lineRef.current;
+    if (!candles || !line) return;
+    const isLine = style === "line";
+    candles.applyOptions({ visible: !isLine });
+    line.applyOptions({ visible: isLine });
+    markersRef.current?.detach();
+    markersRef.current = createSeriesMarkers(isLine ? line : candles, toSeriesMarkers(groups));
+    // `groups` is intentionally read, not depended on: the markers effect below handles updates.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [style]);
 
   // Markers.
   useEffect(() => {
