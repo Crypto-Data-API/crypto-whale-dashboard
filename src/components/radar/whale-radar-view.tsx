@@ -1,180 +1,128 @@
 "use client";
 
-import Link from "next/link";
-import { KeyRound, LoaderCircle, Lock, RefreshCw } from "lucide-react";
-import { ErrorState } from "@/components/common/gate-notice";
-import { PageHeader } from "@/components/common/page-header";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useRouter } from "next/navigation";
+import { useMemo, useState, type ReactNode } from "react";
+import { DeckSkeleton, ErrorState } from "@/components/common/gate-notice";
+import { PageHead, RefreshButton, UpdatedAgo } from "@/components/deck/page-head";
 import { useAccess } from "@/hooks/use-access";
 import { useWhales } from "@/hooks/use-cda-data";
 import { DEMO_WHALE_COINS } from "@/lib/cda/demo";
 import { TIER_LABEL } from "@/lib/cda/types";
-import { RadarChart, RadarLegend } from "./radar-chart";
+import { DemoBanner, type DemoReason } from "./demo-banner";
+import { RadarLegend, RadarScope } from "./radar-scope";
+import { toRadarCoins, topByGross, type RadarCoin } from "./radar-model";
+import { ExtremesPanel, SelectedCoinCard } from "./selected-coin-card";
 import { WhaleHistoryChart } from "./whale-history-chart";
-import { WhaleStats } from "./whale-stats";
-import { WhaleTable } from "./whale-table";
+import { WhaleKpis } from "./whale-kpis";
 
-function DemoPanel({ reason }: { reason: "no-key" | "upgrade" | "invalid-key" | "demo" }) {
-  const copy = {
-    "no-key": {
-      icon: KeyRound,
-      title: "Add your CryptoDataApi key to see live whale positioning",
-      body: "Below is a sample of what the radar shows. Whale positioning comes from /quant/whales, which needs a Pro key; a free key already unlocks charts and the delayed alerts feed.",
-    },
-    upgrade: {
-      icon: Lock,
-      title: "Whale positioning needs a Pro key",
-      body: "Your key works, but /quant/whales is a Pro endpoint. Below is sample data; upgrade to see all ~60 coins refreshed every 5 minutes.",
-    },
-    "invalid-key": {
-      icon: KeyRound,
-      title: "Your API key was rejected",
-      body: "Check the key in Settings. Showing sample data meanwhile.",
-    },
-    demo: {
-      icon: KeyRound,
-      title: "Demo mode is on",
-      body: "Your key is not being used. Turn demo mode off in Settings to load live data.",
-    },
-  }[reason];
-  const Icon = copy.icon;
+/** Radar panel + right column (KPIs, selected coin, extremes). */
+function RadarSection({
+  coins,
+  initialSel,
+  kpis,
+  sample = false,
+}: {
+  coins: RadarCoin[];
+  initialSel: string | null;
+  kpis: ReactNode;
+  sample?: boolean;
+}) {
+  const router = useRouter();
+  const [selected, setSelected] = useState<string | null>(initialSel);
+  const current = useMemo(() => {
+    const want = selected?.toUpperCase();
+    return coins.find((c) => c.symbol === selected) ?? coins.find((c) => c.symbol.toUpperCase() === want) ?? topByGross(coins);
+  }, [coins, selected]);
+
   return (
-    <Card className="border-none ring-1 ring-liq/30">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Icon className="size-4 text-liq" aria-hidden /> {copy.title}
-        </CardTitle>
-        <CardDescription>{copy.body}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-wrap gap-2">
-        <Button asChild>
-          <Link href="/settings">Add your CDA key</Link>
-        </Button>
-        <Button asChild variant="secondary">
-          <a href="https://cryptodataapi.com/pricing" target="_blank" rel="noreferrer">
-            See plans
-          </a>
-        </Button>
-        <Button asChild variant="ghost">
-          <Link href="/alerts">Open the delayed alerts feed</Link>
-        </Button>
-      </CardContent>
-    </Card>
+    <section className="flex flex-wrap gap-[22px]">
+      <div className="relative flex min-w-0 flex-[3_1_560px] flex-col gap-1.5 overflow-hidden rounded-[18px] border border-iris/13 bg-panel p-3.5">
+        <RadarScope coins={coins} selected={current?.symbol ?? null} onSelect={setSelected} sample={sample} />
+        <RadarLegend />
+      </div>
+      <div className="flex min-w-0 flex-[1_1_340px] flex-col gap-4">
+        {kpis}
+        {current ? (
+          <SelectedCoinCard rc={current} onOpen={() => router.push(`/coin/${encodeURIComponent(current.symbol)}`)} />
+        ) : (
+          <div className="rounded-[18px] border border-iris/13 bg-panel p-[22px] text-[13px] text-ink-muted">No coins with whale positioning yet.</div>
+        )}
+        <ExtremesPanel coins={coins} onSelect={setSelected} />
+      </div>
+    </section>
   );
 }
 
-export function WhaleRadarView() {
+export function WhaleRadarView({ initialSel }: { initialSel: string | null }) {
   const access = useAccess();
   const whales = useWhales();
   const gate = whales.gate;
+  const data = whales.data;
+  const coins = useMemo(() => toRadarCoins(data?.coins ?? []), [data]);
+  const demoCoins = useMemo(() => toRadarCoins(DEMO_WHALE_COINS), []);
 
   const header = (
-    <PageHeader
-      title="Whale Radar"
-      description="Where Hyperliquid whales lean right now, ranked against each coin's own 30-day history."
-      actions={
+    <PageHead
+      title="Crypto Whale Radar"
+      right={
         gate === "ok" && (
-          <Button variant="ghost" size="sm" onClick={whales.refetch} disabled={whales.isFetching}>
-            {whales.isFetching ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}
-            Refresh
-          </Button>
+          <>
+            <UpdatedAgo ts={data?.positionsAsOf ?? data?.timestamp ?? (whales.dataUpdatedAt || null)} />
+            <RefreshButton onClick={whales.refetch} busy={whales.isFetching} />
+          </>
         )
       }
     />
   );
 
-  if (gate === "loading" || (gate === "ok" && whales.isLoading && !whales.data)) {
+  if (gate === "loading" || (gate === "ok" && whales.isLoading && !data)) {
     return (
       <>
         {header}
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
-          {Array.from({ length: 7 }, (_, i) => (
-            <Skeleton key={i} className="h-[72px]" />
-          ))}
-        </div>
-        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
-          <Skeleton className="aspect-square w-full" />
-          <Skeleton className="h-96 w-full" />
-        </div>
+        <section className="flex flex-wrap gap-[22px]">
+          <div className="flex min-w-0 flex-[3_1_560px] items-center justify-center rounded-[18px] border border-iris/13 bg-panel p-3.5">
+            <DeckSkeleton className="aspect-square w-[min(100%,max(560px,calc(100vh-190px)))] rounded-full" />
+          </div>
+          <div className="flex min-w-0 flex-[1_1_340px] flex-col gap-4">
+            <div className="grid grid-cols-2 gap-2">
+              {Array.from({ length: 6 }, (_, i) => (
+                <DeckSkeleton key={i} className="h-[58px]" />
+              ))}
+            </div>
+            <DeckSkeleton className="h-[420px] rounded-[18px]" />
+          </div>
+        </section>
       </>
     );
   }
 
   if (gate !== "ok") {
-    const reason = access.demoMode && gate === "no-key" ? "demo" : gate;
+    const reason: DemoReason = access.demoMode && gate === "no-key" ? "demo" : gate;
     return (
       <>
         {header}
-        <div className="flex flex-col gap-4">
-          <DemoPanel reason={reason} />
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
-            <Card size="sm">
-              <CardContent className="flex flex-col gap-3">
-                <RadarChart coins={DEMO_WHALE_COINS} sample />
-                <RadarLegend />
-              </CardContent>
-            </Card>
-            <Card size="sm">
-              <CardHeader>
-                <CardTitle>Sample rows</CardTitle>
-                <CardDescription>Illustrative values, not live data.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <WhaleTable coins={DEMO_WHALE_COINS} compact />
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+        <DemoBanner reason={reason} />
+        <RadarSection coins={demoCoins} initialSel={initialSel} sample kpis={null} />
       </>
     );
   }
 
-  const data = whales.data;
-  const isFree = access.tier === "free";
-
   return (
     <>
       {header}
-      <div className="flex flex-col gap-4">
-        {whales.error && <ErrorState error={whales.error} onRetry={whales.refetch} />}
-        {isFree && (
-          <p className="rounded-lg border border-liq/30 bg-liq/5 px-3 py-2 text-sm">
-            Free preview: {TIER_LABEL.free} keys see a limited set of coins.{" "}
-            <a href="https://cryptodataapi.com/pricing" target="_blank" rel="noreferrer" className="underline underline-offset-2">
-              Upgrade to Pro
-            </a>{" "}
-            for the full universe.
-          </p>
-        )}
-        <WhaleStats data={data} loading={!data} />
-        {data && (
-          <div className="flex flex-col gap-4">
-            <Card size="sm">
-              <CardHeader>
-                <CardTitle>Positioning radar</CardTitle>
-                <CardDescription>{data.coins.length} coins · click a blip to open its chart</CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-center">
-                <RadarChart coins={data.coins} />
-                <RadarLegend />
-              </CardContent>
-            </Card>
-            <Card size="sm" className="min-w-0">
-              <CardHeader>
-                <CardTitle>Coins by whale exposure</CardTitle>
-                <CardDescription>Sort any column; click a row for the chart with whale trades.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <WhaleTable coins={data.coins} />
-              </CardContent>
-            </Card>
-          </div>
-        )}
-        <WhaleHistoryChart />
-        {data?.note && <p className="text-[11px] text-muted-foreground">{data.note}</p>}
-      </div>
+      {whales.error && <ErrorState error={whales.error} onRetry={whales.refetch} />}
+      {access.tier === "free" && (
+        <p className="m-0 rounded-[14px] border border-gold/30 bg-gold/5 px-4 py-2.5 text-[13px] text-ink-soft">
+          Free preview: {TIER_LABEL.free} keys see a limited set of coins.{" "}
+          <a href="https://cryptodataapi.com/pricing" target="_blank" rel="noreferrer" className="text-long hover:text-long-hover">
+            Upgrade to Pro
+          </a>{" "}
+          for the full universe.
+        </p>
+      )}
+      {data && <RadarSection coins={coins} initialSel={initialSel} kpis={<WhaleKpis data={data} loading={false} />} />}
+      <WhaleHistoryChart />
+      {data?.note && <p className="m-0 text-[11.5px] leading-relaxed text-ink-dim">{data.note}</p>}
     </>
   );
 }
