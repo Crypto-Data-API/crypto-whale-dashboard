@@ -8,7 +8,7 @@ import { CDA_UPSTREAM, PROXY_USER_AGENT, pickPassthroughHeaders, serverDemoKey }
  *   1. the `cda_key` cookie (path-scoped to this route, set by the client),
  *   2. a `key` query param (supported, but the app does not use it because
  *      URLs end up in request logs),
- *   3. the optional server env CDA_DEMO_KEY.
+ *   3. the optional server env CDA_API_KEY.
  *
  * The upstream body is piped frame-by-frame with no buffering beyond the
  * current partial frame. `: ping` comment frames are rewritten as

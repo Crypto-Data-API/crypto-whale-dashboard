@@ -5,9 +5,12 @@ export const CDA_UPSTREAM = (process.env.CDA_API_BASE || "https://cryptodataapi.
 
 export const PROXY_USER_AGENT = "crypto-whale-dashboard/0.1 (+nextjs proxy)";
 
-/** Optional server-side fallback key for hosted demos. Never sent to the browser. */
+/**
+ * Optional server-side fallback key. Never sent to the browser.
+ * CDA_API_KEY is the primary name; CDA_DEMO_KEY is kept as an alias.
+ */
 export function serverDemoKey(): string {
-  return (process.env.CDA_DEMO_KEY || "").trim();
+  return (process.env.CDA_API_KEY || process.env.CDA_DEMO_KEY || "").trim();
 }
 
 /** Response headers we pass back to the browser. */

@@ -5,7 +5,7 @@ import { CDA_UPSTREAM, PROXY_USER_AGENT, jsonError, pickPassthroughHeaders, safe
  * REST proxy: /api/cda/<path>?<query>  ->  https://cryptodataapi.com/api/v1/<path>?<query>
  *
  * The browser sends its key in `x-cda-key`; if absent we fall back to the
- * optional server env CDA_DEMO_KEY. Status, JSON body, X-RateLimit-* and
+ * optional server env CDA_API_KEY. Status, JSON body, X-RateLimit-* and
  * Retry-After are passed through unchanged. The key is never logged.
  */
 export const dynamic = "force-dynamic";

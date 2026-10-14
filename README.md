@@ -35,13 +35,13 @@ Other scripts: `npm run lint`.
 
 ### Optional server-side demo key
 
-Copy `.env.example` to `.env.local` and set `CDA_DEMO_KEY` to use a server-side key whenever a visitor has not entered their own. This is meant for a hosted public demo: every visitor without a key spends this key's rate limit.
+Copy `.env.example` to `.env` and set `CDA_API_KEY` to use a server-side key whenever a visitor has not entered their own. This is meant for a hosted public demo: every visitor without a key spends this key's rate limit.
 
 ```bash
-CDA_DEMO_KEY=cdk_live_...
+CDA_API_KEY=cdk_live_...
 ```
 
-The app reads only `CDA_DEMO_KEY` (and optionally `CDA_API_BASE`). Any other variables in `.env` are ignored.
+The app reads only `CDA_API_KEY` (alias `CDA_DEMO_KEY`) (and optionally `CDA_API_BASE`). Any other variables in `.env` are ignored.
 
 ## What each tier unlocks
 
