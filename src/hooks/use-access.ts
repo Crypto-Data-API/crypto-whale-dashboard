@@ -31,17 +31,20 @@ export interface Access {
   keyInfo: KeyInfo | null;
   authLoading: boolean;
   authError: CdaError | null;
+  /** The server has CDA_API_KEY configured (from GET /api/cda/_status). */
+  hasServerKey: boolean;
   gate: (req: Requirement) => Gate;
 }
 
-function useServerConfig() {
+/** GET /api/cda/_status -> { hasServerKey } (never the key itself). */
+function useServerStatus() {
   return useQuery({
-    queryKey: ["server-config"],
+    queryKey: ["cda-status"],
     queryFn: async ({ signal }) => {
-      const res = await fetch("/api/config", { signal, cache: "no-store" });
-      if (!res.ok) return { demoKey: false };
-      const j = (await res.json()) as { demoKey?: unknown };
-      return { demoKey: j.demoKey === true };
+      const res = await fetch("/api/cda/_status", { signal, cache: "no-store" });
+      if (!res.ok) return { hasServerKey: false };
+      const j = (await res.json()) as { hasServerKey?: unknown };
+      return { hasServerKey: j.hasServerKey === true };
     },
     staleTime: Infinity,
     retry: 1,
@@ -54,10 +57,11 @@ export function useAccess(): Access {
   const apiKey = useSettings((s) => s.apiKey);
   const demoMode = useSettings((s) => s.demoMode);
   const storedInfo = useSettings((s) => s.keyInfo);
-  const cfg = useServerConfig();
+  const cfg = useServerStatus();
+  const hasServerKey = cfg.data?.hasServerKey === true;
 
   const userKey = demoMode ? "" : apiKey;
-  const source: KeySource = userKey ? "user" : cfg.data?.demoKey ? "server" : "none";
+  const source: KeySource = userKey ? "user" : hasServerKey ? "server" : "none";
   const fp = source === "user" ? keyFingerprint(userKey) : source;
 
   const auth = useQuery({
@@ -88,5 +92,5 @@ export function useAccess(): Access {
     return TIER_RANK[tier] >= TIER_RANK[req] ? "ok" : "upgrade";
   };
 
-  return { hydrated, demoMode, source, fp, tier, keyInfo, authLoading, authError, gate };
+  return { hydrated, demoMode, source, fp, tier, keyInfo, authLoading, authError, hasServerKey, gate };
 }

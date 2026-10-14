@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { CDA_UPSTREAM, PROXY_USER_AGENT, pickPassthroughHeaders, serverDemoKey } from "@/lib/cda/server";
+import { CDA_UPSTREAM, PROXY_USER_AGENT, pickPassthroughHeaders, serverKey } from "@/lib/cda/server";
 
 /**
  * SSE proxy: /api/cda/stream?types=&symbols=&min_usd=&since_id=
@@ -8,7 +8,7 @@ import { CDA_UPSTREAM, PROXY_USER_AGENT, pickPassthroughHeaders, serverDemoKey }
  *   1. the `cda_key` cookie (path-scoped to this route, set by the client),
  *   2. a `key` query param (supported, but the app does not use it because
  *      URLs end up in request logs),
- *   3. the optional server env CDA_API_KEY.
+ *   3. the server env CDA_API_KEY when neither is given.
  *
  * The upstream body is piped frame-by-frame with no buffering beyond the
  * current partial frame. `: ping` comment frames are rewritten as
@@ -54,7 +54,8 @@ function errorDetail(text: string): { error: string; message: string } {
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
-  const key = (req.cookies.get("cda_key")?.value || sp.get("key") || serverDemoKey()).trim();
+  const userKey = (req.cookies.get("cda_key")?.value || sp.get("key") || "").trim();
+  const key = userKey || serverKey();
 
   const upstreamUrl = new URL(`${CDA_UPSTREAM}/stream`);
   for (const name of FORWARD_PARAMS) {

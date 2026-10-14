@@ -21,8 +21,9 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000, go to **Settings**, paste your CryptoDataApi key and press **Test & Save**.
-The key is checked against `GET /auth/keys/me`, and the tier badge, rate-limit meter and features update immediately.
+Open http://localhost:3000. If `.env` has `CDA_API_KEY`, everything loads through that server key and the header shows "Using server key".
+Otherwise go to **Settings**, paste your CryptoDataApi key and press **Test & Save**.
+The key is checked against `GET /auth/keys/me`, and the tier badge, rate-limit meter and features update immediately. A key saved in Settings always takes priority over the server key.
 
 Production build:
 
@@ -33,15 +34,18 @@ npm start
 
 Other scripts: `npm run lint`.
 
-### Optional server-side demo key
+### Server-side key
 
-Copy `.env.example` to `.env` and set `CDA_API_KEY` to use a server-side key whenever a visitor has not entered their own. This is meant for a hosted public demo: every visitor without a key spends this key's rate limit.
+Copy `.env.example` to `.env` and set `CDA_API_KEY` to use a server-side key whenever the browser has not supplied its own.
 
 ```bash
 CDA_API_KEY=cdk_live_...
 ```
 
-The app reads only `CDA_API_KEY` (alias `CDA_DEMO_KEY`) (and optionally `CDA_API_BASE`). Any other variables in `.env` are ignored.
+- The server key never reaches the browser. `GET /api/cda/_status` only reports `{ "hasServerKey": true|false }`.
+- It is used for read-only (GET) requests only. Write requests without the visitor's own key get a 401 `user_key_required`, so a deployment cannot change the key owner's webhooks or watchlists.
+- On a public deployment every visitor without their own key spends this key's rate limit.
+- The app reads `CDA_API_KEY` (legacy alias `CDA_DEMO_KEY`) and optionally `CDA_API_BASE`. Other variables in `.env` are ignored.
 
 ## What each tier unlocks
 
@@ -54,16 +58,17 @@ The app reads only `CDA_API_KEY` (alias `CDA_DEMO_KEY`) (and optionally `CDA_API
 | Quant outlook (`/quant/coins/{symbol}`) | – | – | ✓ | ✓ |
 | 180-day whale history | – | – | – | ✓ |
 
-Cards show a "Requires Pro" or "Add your API key" state instead of an error when the tier does not cover an endpoint.
+"No key" means neither a Settings key nor a server key. Cards show a "Requires Pro" or "Add your API key" state instead of an error when the tier does not cover an endpoint.
 
 ## How it works
 
 ```
 Browser ── x-cda-key header ──▶ /api/cda/[...path] ──X-API-Key──▶ cryptodataapi.com/api/v1/...
 Browser ── EventSource + cookie ─▶ /api/cda/stream ───X-API-Key──▶ cryptodataapi.com/api/v1/stream
+                       (no browser key) ──▶ falls back to CDA_API_KEY on the server
 ```
 
-- **Key handling.** The key lives in `localStorage` (a persisted Zustand store) and is sent only to this app's own route handlers, which forward it upstream. Route handlers never log it. `EventSource` cannot set headers, so the stream route reads the key from a `cda_key` cookie scoped to `/api/cda/stream` rather than from the URL.
+- **Key handling.** A Settings key lives in `localStorage` (a persisted Zustand store) and is sent only to this app's own route handlers, which forward it upstream. Without one, the handlers use `CDA_API_KEY`. Route handlers never log either key. `EventSource` cannot set headers, so the stream route reads a browser key from a `cda_key` cookie scoped to `/api/cda/stream` (a `key` query param also works) before falling back to the server key.
 - **REST proxy** (`src/app/api/cda/[...path]/route.ts`) passes through status codes, JSON bodies, `X-RateLimit-*` and `Retry-After`.
 - **SSE proxy** (`src/app/api/cda/stream/route.ts`) pipes frames through with no extra buffering, turns `: ping` comments into `event: ping` for the client watchdog, and reports upstream HTTP errors as an `upstream_error` event.
 - **Client** (`src/lib/cda/`) has a typed fetch wrapper with a `CdaError` type, rate-limit capture, and one retry on 429/503 that honours `Retry-After` (30 s max). It also holds defensive parsers and the stream manager. The stream manager backfills from `/stream/recent`, opens the live stream with `since_id`, resyncs on `lagged`, reconnects with exponential backoff, and falls back to the delayed feed for free or no-key access.

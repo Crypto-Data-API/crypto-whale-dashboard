@@ -28,20 +28,24 @@ export function TierBadge() {
   } else if (access.authError?.isAuth) {
     label = "Invalid key";
     tone = "border-short/50 text-short";
-    hint = "The API rejected this key";
+    hint = access.source === "server" ? "The API rejected the server key (CDA_API_KEY)" : "The API rejected this key";
   } else if (access.tier) {
     label = access.tier === "pro_plus" ? "Pro+" : TIER_LABEL[access.tier];
     tone = access.tier === "free" ? "border-border text-foreground" : "border-transfer/50 text-transfer";
-    hint = `${TIER_LABEL[access.tier]} key${access.source === "server" ? " (server demo key)" : ""}${access.keyInfo?.keyPrefix ? ` · ${access.keyInfo.keyPrefix}…` : ""}`;
+    hint =
+      access.source === "server"
+        ? `Using the server key (CDA_API_KEY), ${TIER_LABEL[access.tier]} tier. Add your own key in Settings to use it instead.`
+        : `${TIER_LABEL[access.tier]} key${access.keyInfo?.keyPrefix ? ` · ${access.keyInfo.keyPrefix}…` : ""}`;
   }
+  const serverMode = access.hydrated && access.source === "server";
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Link
-          href="/settings"
-          className={cn("inline-flex h-6 items-center rounded-full border px-2 text-[11px] font-medium whitespace-nowrap", tone)}
-        >
-          {label}
+        <Link href="/settings" className="flex items-center gap-1.5">
+          {serverMode && <span className="hidden text-[11px] whitespace-nowrap text-muted-foreground sm:inline">Using server key</span>}
+          <span className={cn("inline-flex h-6 items-center rounded-full border px-2 text-[11px] font-medium whitespace-nowrap", tone)}>
+            {label}
+          </span>
         </Link>
       </TooltipTrigger>
       <TooltipContent>{hint}</TooltipContent>

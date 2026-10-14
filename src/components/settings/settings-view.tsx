@@ -164,8 +164,25 @@ function ApiKeyCard() {
             {shownInfo && <KeyInfoGrid info={shownInfo} />}
           </div>
         )}
-        {!apiKey && access.source === "server" && (
-          <p className="text-sm text-muted-foreground">This deployment has a server-side demo key, so data loads without your own key.</p>
+        {access.source === "server" && (
+          <div className="flex flex-col gap-3 rounded-lg border border-transfer/30 bg-transfer/5 p-3">
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="font-medium">Using server key</span>
+              {access.authError?.isAuth ? (
+                <Badge variant="destructive">Rejected</Badge>
+              ) : access.tier ? (
+                <Badge variant="secondary">{TIER_LABEL[access.tier]}</Badge>
+              ) : null}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              This server has <code className="font-mono text-xs">CDA_API_KEY</code> configured, so data loads without a key of your own. The
+              server key is used for read-only requests; a key saved here takes priority.
+            </p>
+            {access.keyInfo && <KeyInfoGrid info={access.keyInfo} />}
+          </div>
+        )}
+        {access.source === "user" && access.hasServerKey && (
+          <p className="text-xs text-muted-foreground">Your key takes priority over the server key configured on this deployment.</p>
         )}
       </CardContent>
     </Card>
@@ -175,13 +192,15 @@ function ApiKeyCard() {
 function ModeCard() {
   const demoMode = useSettings((s) => s.demoMode);
   const setDemoMode = useSettings((s) => s.setDemoMode);
+  const access = useAccess();
   return (
     <Card>
       <CardHeader>
         <CardTitle>Demo mode</CardTitle>
         <CardDescription>
-          Stop sending your key: the radar shows sample rows and the alerts feed uses the free 30-minute delayed stream. Useful for screenshots
-          or saving rate limit.
+          {access.hasServerKey
+            ? "Stop sending your own key. This server has a key configured, so data keeps loading through the server key."
+            : "Stop sending your key: the radar shows sample rows and the alerts feed uses the free 30-minute delayed stream. Useful for screenshots or saving rate limit."}
         </CardDescription>
       </CardHeader>
       <CardContent>

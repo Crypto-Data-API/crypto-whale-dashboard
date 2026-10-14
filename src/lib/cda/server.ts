@@ -6,11 +6,21 @@ export const CDA_UPSTREAM = (process.env.CDA_API_BASE || "https://cryptodataapi.
 export const PROXY_USER_AGENT = "crypto-whale-dashboard/0.1 (+nextjs proxy)";
 
 /**
- * Optional server-side fallback key. Never sent to the browser.
- * CDA_API_KEY is the primary name; CDA_DEMO_KEY is kept as an alias.
+ * Server-side fallback key, used when the browser has not supplied its own
+ * key. CDA_API_KEY is the primary name; CDA_DEMO_KEY is kept as an alias.
+ * Never sent to the browser and never logged.
  */
-export function serverDemoKey(): string {
+export function serverKey(): string {
   return (process.env.CDA_API_KEY || process.env.CDA_DEMO_KEY || "").trim();
+}
+
+export function hasServerKey(): boolean {
+  return serverKey().length > 0;
+}
+
+/** Body for GET /api/cda/_status. Reveals only whether a server key exists. */
+export function statusResponse(): Response {
+  return Response.json({ hasServerKey: hasServerKey() }, { headers: { "cache-control": "no-store" } });
 }
 
 /** Response headers we pass back to the browser. */
