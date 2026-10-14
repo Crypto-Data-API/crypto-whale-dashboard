@@ -1,0 +1,39 @@
+import "server-only";
+
+/** Upstream base URL (no trailing slash). */
+export const CDA_UPSTREAM = (process.env.CDA_API_BASE || "https://cryptodataapi.com/api/v1").replace(/\/+$/, "");
+
+export const PROXY_USER_AGENT = "crypto-whale-dashboard/0.1 (+nextjs proxy)";
+
+/** Optional server-side fallback key for hosted demos. Never sent to the browser. */
+export function serverDemoKey(): string {
+  return (process.env.CDA_DEMO_KEY || "").trim();
+}
+
+/** Response headers we pass back to the browser. */
+export function pickPassthroughHeaders(src: Headers): Headers {
+  const out = new Headers();
+  src.forEach((value, name) => {
+    const n = name.toLowerCase();
+    if (n.startsWith("x-ratelimit-") || n === "retry-after" || n === "x-api-version") out.set(n, value);
+  });
+  // Let the browser read them (same-origin anyway, but harmless and explicit).
+  out.set("access-control-expose-headers", "retry-after, x-ratelimit-limit-day, x-ratelimit-remaining-day, x-ratelimit-limit-minute, x-ratelimit-remaining-minute, x-ratelimit-reset-day, x-ratelimit-reset-minute");
+  return out;
+}
+
+/** Reject path segments that could escape /api/v1. */
+export function safePath(segments: string[] | undefined): string | null {
+  if (!segments || segments.length === 0) return null;
+  for (const s of segments) {
+    if (!s || s === "." || s === ".." || s.includes("\\") || s.includes("\0")) return null;
+  }
+  return segments.map((s) => encodeURIComponent(s)).join("/");
+}
+
+export function jsonError(status: number, error: string, message: string, extra: HeadersInit = {}): Response {
+  return new Response(JSON.stringify({ detail: { error, message } }), {
+    status,
+    headers: { "content-type": "application/json", "cache-control": "no-store", ...extra },
+  });
+}
