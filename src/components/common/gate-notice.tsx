@@ -71,11 +71,13 @@ export function GateNotice({
   );
 }
 
-/** Error panel with retry; explains warm-up (503) and rate limits (429). */
+/** Error panel with retry; explains warm-up (503), rate limits (429) and gaps in the sample snapshot. */
 export function ErrorState({ error, onRetry, className }: { error: CdaError | null; onRetry?: () => void; className?: string }) {
   if (!error) return null;
+  const notInSample = error.code === "not_in_sample";
   let title = "Could not load data";
-  if (error.isWarming) title = "Dataset warming up";
+  if (notInSample) title = "Not in the sample snapshot";
+  else if (error.isWarming) title = "Dataset warming up";
   else if (error.isRateLimited) title = "Rate limit reached";
   else if (error.status === 0) title = "Connection problem";
   const retryNote = error.retryAfter ? ` Try again in ~${Math.ceil(error.retryAfter)}s.` : "";
@@ -90,10 +92,16 @@ export function ErrorState({ error, onRetry, className }: { error: CdaError | nu
           {error.message}
           {retryNote}
         </p>
-        {onRetry && (
-          <button type="button" onClick={onRetry} className={deckButton({ variant: "ghost", size: "sm", className: "mt-2" })}>
-            <RefreshIcon size={12} /> RETRY
-          </button>
+        {notInSample ? (
+          <a href={PRICING_URL} target="_blank" rel="noopener noreferrer" className={deckButton({ size: "sm", className: "mt-2" })}>
+            GET A KEY →
+          </a>
+        ) : (
+          onRetry && (
+            <button type="button" onClick={onRetry} className={deckButton({ variant: "ghost", size: "sm", className: "mt-2" })}>
+              <RefreshIcon size={12} /> RETRY
+            </button>
+          )
         )}
       </div>
     </div>

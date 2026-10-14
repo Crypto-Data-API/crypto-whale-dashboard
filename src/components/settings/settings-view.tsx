@@ -5,6 +5,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { DeckSkeleton } from "@/components/common/gate-notice";
 import { deckButton } from "@/components/deck/button";
+import { GetKeyPrompt } from "@/components/deck/get-key-prompt";
 import { KeyIcon } from "@/components/deck/icons";
 import { PageHead } from "@/components/deck/page-head";
 import { Kicker, PanelSub, PanelTitle } from "@/components/deck/panel";
@@ -15,6 +16,7 @@ import { useSettingsHydrated } from "@/hooks/use-hydrated";
 import { isCdaError } from "@/lib/cda/client";
 import { getKeyInfo } from "@/lib/cda/endpoints";
 import { CHART_INTERVALS, EVENT_LABEL, EVENT_TYPES, TIER_LABEL, type ChartInterval, type EventType, type KeyInfo } from "@/lib/cda/types";
+import { STATIC_SAMPLE } from "@/lib/deploy";
 import { fmtInt } from "@/lib/format";
 import { requestNotificationPermission, unlockAudio } from "@/lib/notify";
 import { cn } from "@/lib/utils";
@@ -106,14 +108,7 @@ function ApiKeyPanel() {
 
   return (
     <SettingsPanel
-      title={
-        <span className="flex items-center gap-2.5">
-          <span className="grid size-7 place-items-center rounded-[8px] bg-long/10 text-long">
-            <KeyIcon size={15} />
-          </span>
-          CryptoDataApi key
-        </span>
-      }
+      title={<KeyPanelTitle />}
       sub="Stored only in this browser (localStorage) and sent to this app's own server proxy, which forwards it to the API. A free key works for charts and the delayed feed; Pro unlocks whale positioning, the live stream and trade flow."
     >
       <div className="flex flex-col gap-2">
@@ -216,6 +211,43 @@ function ApiKeyPanel() {
       )}
     </SettingsPanel>
   );
+}
+
+function KeyPanelTitle() {
+  return (
+    <span className="flex items-center gap-2.5">
+      <span className="grid size-7 place-items-center rounded-[8px] bg-long/10 text-long">
+        <KeyIcon size={15} />
+      </span>
+      CryptoDataApi key
+    </span>
+  );
+}
+
+/** Static (GitHub Pages) build: replaces the key form, which cannot work without a server. */
+function StaticDemoKeyPanel() {
+  return (
+    <SettingsPanel title={<KeyPanelTitle />} sub="This hosted demo runs without a server, so it cannot use an API key.">
+      <div className="flex flex-col gap-2 rounded-[14px] border border-gold/30 bg-gold/5 p-4">
+        <div className="flex flex-wrap items-center gap-2.5 text-[13px]">
+          <span className="font-display text-[14px] font-semibold">Sample snapshot only</span>
+          <TierTag tone="gold">Static demo</TierTag>
+        </div>
+        <p className="m-0 text-[13px] leading-relaxed text-ink-muted">
+          CryptoDataApi does not send CORS headers, so a web page cannot call it straight from the browser, and GitHub Pages has no server to forward requests
+          with your key. Every page here uses a bundled snapshot of real API responses: whale positioning, wallets, recent alerts and full DOGE, BTC, ETH and
+          SOL charts with trade flow. Run the dashboard yourself, locally or on Vercel, and add your key for live data.
+        </p>
+      </div>
+    </SettingsPanel>
+  );
+}
+
+/** Get-a-key / run-it-live prompt while the app shows sample data (not in Demo mode). */
+function SampleKeyPrompt() {
+  const access = useAccess();
+  if (access.source !== "sample" || access.demoMode) return null;
+  return <GetKeyPrompt />;
 }
 
 function ToggleRow({ id, checked, onChange, label }: { id: string; checked: boolean; onChange: (on: boolean) => void; label: string }) {
@@ -422,7 +454,7 @@ function ImportExportPanel() {
 
   return (
     <SettingsPanel title="Import / export" sub="Move your thresholds, intervals and feed filters between browsers.">
-      <ToggleRow id="include-key" checked={includeKey} onChange={setIncludeKey} label="Include API key in export" />
+      {!STATIC_SAMPLE && <ToggleRow id="include-key" checked={includeKey} onChange={setIncludeKey} label="Include API key in export" />}
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={doExport} className={deckButton()}>
           EXPORT JSON
@@ -468,8 +500,9 @@ export function SettingsView() {
         </div>
       ) : (
         <div className="flex max-w-[980px] flex-col gap-[22px]">
-          <ApiKeyPanel />
-          <ModePanel />
+          {STATIC_SAMPLE ? <StaticDemoKeyPanel /> : <ApiKeyPanel />}
+          <SampleKeyPrompt />
+          {!STATIC_SAMPLE && <ModePanel />}
           <AlertsPanel />
           <ChartRefreshPanel />
           <ImportExportPanel />

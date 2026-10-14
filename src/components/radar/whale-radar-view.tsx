@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState, type ReactNode } from "react";
 import { DeckSkeleton, ErrorState } from "@/components/common/gate-notice";
+import { GetKeyPrompt, useGetKeyBanner } from "@/components/deck/get-key-prompt";
 import { PageHead, RefreshButton, UpdatedAgo } from "@/components/deck/page-head";
 import { useAccess } from "@/hooks/use-access";
 import { useWhales } from "@/hooks/use-cda-data";
@@ -58,6 +59,14 @@ export function WhaleRadarFromUrl() {
   const raw = useSearchParams().get("sel");
   const initialSel = raw ? raw.trim().slice(0, 32) || null : null;
   return <WhaleRadarView key={initialSel ?? ""} initialSel={initialSel} />;
+}
+
+/** Sample-data call to action above the radar (hidden in Demo mode and once dismissed). */
+function SampleBanner() {
+  const access = useAccess();
+  const banner = useGetKeyBanner();
+  if (access.source !== "sample" || access.demoMode || !banner.show) return null;
+  return <GetKeyPrompt variant="banner" onDismiss={banner.dismiss} />;
 }
 
 export function WhaleRadarView({ initialSel }: { initialSel: string | null }) {
@@ -117,6 +126,7 @@ export function WhaleRadarView({ initialSel }: { initialSel: string | null }) {
   return (
     <>
       {header}
+      <SampleBanner />
       {whales.error && <ErrorState error={whales.error} onRetry={whales.refetch} />}
       {access.tier === "free" && (
         <p className="m-0 rounded-[14px] border border-gold/30 bg-gold/5 px-4 py-2.5 text-[13px] text-ink-soft">

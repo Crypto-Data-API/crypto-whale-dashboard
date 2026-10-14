@@ -71,7 +71,7 @@ export function shiftTimes(v: Json, ms: number): Json {
 export function notInSample(path: string): SampleReply {
   return {
     status: 404,
-    body: { detail: { error: "not_in_sample", message: `No sample data for ${path}. Add an API key for live data.` } },
+    body: { detail: { error: "not_in_sample", message: `The sample snapshot has no data for ${path}. Live data needs a CryptoDataApi key.` } },
   };
 }
 
