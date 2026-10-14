@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { CoinLogo } from "@/components/deck/coin-logo";
 import { fmtUsd } from "@/lib/format";
 import { DECK } from "@/lib/palette";
@@ -36,19 +36,33 @@ export function RadarScope({
   const rawId = useId();
   const uid = rawId.replace(/[^a-zA-Z0-9_-]/g, "");
   const [hover, setHover] = useState<string | null>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  // Blip sizes follow the design at full size and shrink on small radars (phones).
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width ?? 600;
+      setScale(Math.max(0.55, Math.min(1, w / 600)));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const blips = useMemo(() => {
     const maxGross = Math.max(1, ...coins.map((c) => c.gross));
     return coins.map((c) => {
       const pos = blipPosition(c.pct, blipAngle(c.symbol));
-      return { c, ...pos, px: blipSize(c.gross, maxGross), color: c.long ? DECK.long : DECK.short };
+      return { c, ...pos, px: Math.round(blipSize(c.gross, maxGross) * scale), color: c.long ? DECK.long : DECK.short };
     });
-  }, [coins]);
+  }, [coins, scale]);
 
   const sel = blips.find((b) => b.c.symbol === selected) ?? null;
 
   return (
-    <div className="relative mx-auto aspect-square" style={{ width: "min(100%, max(560px, calc(100vh - 190px)))" }}>
+    <div ref={boxRef} className="relative mx-auto aspect-square" style={{ width: "min(100%, max(560px, calc(100vh - 190px)))" }}>
       <svg viewBox="-100 -100 200 200" className="absolute inset-0 size-full overflow-visible select-none" aria-hidden>
         <defs>
           <radialGradient id={`${uid}top`} cx="0" cy="0" r="90" gradientUnits="userSpaceOnUse">
@@ -95,8 +109,8 @@ export function RadarScope({
       <div className="absolute inset-0" role="group" aria-label="Whale positioning radar">
         {sel && (
           <div
-            className="blip-pulse pointer-events-none absolute size-[60px] rounded-full"
-            style={{ left: `${sel.left}%`, top: `${sel.top}%`, border: `2px solid ${sel.color}`, transform: "translate(-50%,-50%)" }}
+            className="blip-pulse pointer-events-none absolute rounded-full"
+            style={{ left: `${sel.left}%`, top: `${sel.top}%`, width: 60 * scale, height: 60 * scale, border: `2px solid ${sel.color}`, transform: "translate(-50%,-50%)" }}
             aria-hidden
           />
         )}
