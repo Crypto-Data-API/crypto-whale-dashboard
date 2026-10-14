@@ -6,6 +6,7 @@ import { DeckSkeleton, ErrorState } from "@/components/common/gate-notice";
 import { GetKeyPrompt, useGetKeyBanner } from "@/components/deck/get-key-prompt";
 import { PageHead, RefreshButton, UpdatedAgo } from "@/components/deck/page-head";
 import { useAccess } from "@/hooks/use-access";
+import { CoinSearch } from "@/components/layout/coin-search";
 import { useWhales } from "@/hooks/use-cda-data";
 import { DEMO_WHALE_COINS } from "@/lib/cda/demo";
 import { TIER_LABEL } from "@/lib/cda/types";
@@ -38,6 +39,7 @@ function RadarSection({
   return (
     <section className="flex flex-wrap gap-[22px]">
       <div className="relative flex min-w-0 flex-[3_1_560px] flex-col gap-1.5 overflow-hidden rounded-[18px] border border-iris/13 bg-panel p-3.5">
+        <CoinSearch className="absolute top-3.5 left-3.5 z-[60] w-[220px]" />
         <RadarScope coins={coins} selected={current?.symbol ?? null} onSelect={setSelected} sample={sample} />
         <RadarLegend />
       </div>

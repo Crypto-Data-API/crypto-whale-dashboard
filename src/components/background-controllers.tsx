@@ -23,7 +23,10 @@ export function StreamController() {
   const apiKey = useSettings((s) => s.apiKey);
   const demoMode = useSettings((s) => s.demoMode);
   const gate = access.gate("pro");
-  const mode = STATIC_SAMPLE ? "sample" : gate === "loading" ? null : gate === "ok" ? "live" : "delayed";
+  // Sample source (no key anywhere, or Demo mode) replays the snapshot instead of
+  // hitting the real stream, which would fail without a key or spend the server key.
+  const mode =
+    STATIC_SAMPLE || access.source === "sample" ? "sample" : gate === "loading" ? null : gate === "ok" ? "live" : "delayed";
   const key = STATIC_SAMPLE || demoMode ? "" : apiKey;
 
   useEffect(() => {

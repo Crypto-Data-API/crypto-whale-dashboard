@@ -42,7 +42,7 @@ export interface PriceChartProps {
 }
 
 /** Default viewport: the most recent N days, whatever the interval. */
-const VISIBLE_DAYS = 4;
+const VISIBLE_DAYS = 1;
 
 const HAIRLINE = "rgba(120,140,255,.1)";
 
