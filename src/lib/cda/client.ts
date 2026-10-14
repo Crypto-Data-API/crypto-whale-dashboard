@@ -158,6 +158,8 @@ export async function cdaFetch<T = unknown>(path: string, opts: CdaFetchOptions 
   const key = keyOverride === undefined ? currentClientKey() : keyOverride ?? "";
   const headers: HeadersInit = { Accept: "application/json" };
   if (key) (headers as Record<string, string>)["x-cda-key"] = key;
+  // Demo mode: ask the proxy for bundled sample data instead of the server key.
+  if (!key && useSettings.getState().demoMode) (headers as Record<string, string>)["x-cda-sample"] = "1";
 
   for (let attempt = 0; ; attempt++) {
     let res: Response;

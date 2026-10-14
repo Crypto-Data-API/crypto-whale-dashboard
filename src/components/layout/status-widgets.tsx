@@ -17,10 +17,16 @@ export function TierBadge() {
   let hint = "Checking your API key";
   if (!access.hydrated) {
     label = "…";
+  } else if (access.source === "sample") {
+    label = access.demoMode ? "Demo" : "Sample data";
+    tone = "border-liq/40 text-liq";
+    hint = access.demoMode
+      ? "Demo mode: bundled sample snapshots and the 30-minute delayed feed"
+      : "No API key yet: showing bundled sample snapshots. Add your CryptoDataApi key in Settings for live data.";
   } else if (access.demoMode && access.source === "none") {
     label = "Demo";
     tone = "border-liq/40 text-liq";
-    hint = "Demo mode: sample data and the 30-minute delayed feed";
+    hint = "Demo mode: the 30-minute delayed feed only";
   } else if (access.source === "none") {
     label = "No key";
     tone = "border-border text-muted-foreground";
@@ -37,12 +43,12 @@ export function TierBadge() {
         ? `Using the server key (CDA_API_KEY), ${TIER_LABEL[access.tier]} tier. Add your own key in Settings to use it instead.`
         : `${TIER_LABEL[access.tier]} key${access.keyInfo?.keyPrefix ? ` · ${access.keyInfo.keyPrefix}…` : ""}`;
   }
-  const serverMode = access.hydrated && access.source === "server";
+  const note = !access.hydrated ? null : access.source === "server" ? "Using server key" : access.source === "sample" ? "Add a key for live data" : null;
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <Link href="/settings" className="flex items-center gap-1.5">
-          {serverMode && <span className="hidden text-[11px] whitespace-nowrap text-muted-foreground sm:inline">Using server key</span>}
+          {note && <span className="hidden text-[11px] whitespace-nowrap text-muted-foreground sm:inline">{note}</span>}
           <span className={cn("inline-flex h-6 items-center rounded-full border px-2 text-[11px] font-medium whitespace-nowrap", tone)}>
             {label}
           </span>

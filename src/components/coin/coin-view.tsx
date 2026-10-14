@@ -255,7 +255,7 @@ export function CoinView({ symbol }: { symbol: string }) {
 
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
                 <span>
-                  Arrows: whale position changes by net flow (buy = opening long or closing short). Green / coral dots: minutes of big taker buying / selling (last 24h). Amber circles: liquidations. Squares: exchange
+                  Arrows: whale position changes by net flow (buy = opening long or closing short). Green / coral dots: minutes of big taker buying / selling. Amber circles: liquidations. Squares: exchange
                   inflows (coral) and outflows (green).
                 </span>
                 <span>

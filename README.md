@@ -47,6 +47,16 @@ CDA_API_KEY=cdk_live_...
 - On a public deployment every visitor without their own key spends this key's rate limit.
 - The app reads `CDA_API_KEY` (legacy alias `CDA_DEMO_KEY`) and optionally `CDA_API_BASE`. Other variables in `.env` are ignored.
 
+### Sample data (no key at all)
+
+With no key in Settings and no server key, the proxy answers from JSON snapshots in `src/data/sample/` so the UI is never empty: whale positioning, the wallet leaderboard with positions, recent alerts, exchange-flow spikes, and full coin pages for DOGE, BTC, ETH and SOL (candles on every interval plus three days of 1-minute trade flow for the big buy / sell dots). Timestamps are shifted so the snapshot always ends "now". The header shows a **Sample data** badge, and the moment a key is saved the proxy switches to live data. **Demo mode** in Settings forces the snapshot even when a server key exists.
+
+Refresh the snapshot with your own key (about 50 requests):
+
+```bash
+npm run sample:capture
+```
+
 ## What each tier unlocks
 
 | Feature | No key | Free | Pro | Pro Plus |

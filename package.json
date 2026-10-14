@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "sample:capture": "node scripts/capture-sample-data.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.2",

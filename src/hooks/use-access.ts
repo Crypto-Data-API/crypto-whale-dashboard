@@ -19,7 +19,7 @@ export type Requirement = "none" | "any" | Tier;
  */
 export type Gate = "ok" | "loading" | "no-key" | "upgrade" | "invalid-key";
 
-export type KeySource = "user" | "server" | "none";
+export type KeySource = "user" | "server" | "sample" | "none";
 
 export interface Access {
   hydrated: boolean;
@@ -33,18 +33,20 @@ export interface Access {
   authError: CdaError | null;
   /** The server has CDA_API_KEY configured (from GET /api/cda/_status). */
   hasServerKey: boolean;
+  /** The server ships bundled sample snapshots (src/data/sample). */
+  hasSampleData: boolean;
   gate: (req: Requirement) => Gate;
 }
 
-/** GET /api/cda/_status -> { hasServerKey } (never the key itself). */
+/** GET /api/cda/_status -> { hasServerKey, hasSampleData } (never the key itself). */
 function useServerStatus() {
   return useQuery({
     queryKey: ["cda-status"],
     queryFn: async ({ signal }) => {
       const res = await fetch("/api/cda/_status", { signal, cache: "no-store" });
-      if (!res.ok) return { hasServerKey: false };
-      const j = (await res.json()) as { hasServerKey?: unknown };
-      return { hasServerKey: j.hasServerKey === true };
+      if (!res.ok) return { hasServerKey: false, hasSampleData: false };
+      const j = (await res.json()) as { hasServerKey?: unknown; hasSampleData?: unknown };
+      return { hasServerKey: j.hasServerKey === true, hasSampleData: j.hasSampleData === true };
     },
     staleTime: Infinity,
     retry: 1,
@@ -59,9 +61,11 @@ export function useAccess(): Access {
   const storedInfo = useSettings((s) => s.keyInfo);
   const cfg = useServerStatus();
   const hasServerKey = cfg.data?.hasServerKey === true;
+  const hasSampleData = cfg.data?.hasSampleData === true;
 
   const userKey = demoMode ? "" : apiKey;
-  const source: KeySource = userKey ? "user" : hasServerKey ? "server" : "none";
+  // Demo mode skips the server key too, so it always shows the bundled sample data.
+  const source: KeySource = userKey ? "user" : hasServerKey && !demoMode ? "server" : hasSampleData ? "sample" : "none";
   const fp = source === "user" ? keyFingerprint(userKey) : source;
 
   const auth = useQuery({
@@ -92,5 +96,5 @@ export function useAccess(): Access {
     return TIER_RANK[tier] >= TIER_RANK[req] ? "ok" : "upgrade";
   };
 
-  return { hydrated, demoMode, source, fp, tier, keyInfo, authLoading, authError, hasServerKey, gate };
+  return { hydrated, demoMode, source, fp, tier, keyInfo, authLoading, authError, hasServerKey, hasSampleData, gate };
 }

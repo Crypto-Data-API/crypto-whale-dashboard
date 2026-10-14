@@ -1,5 +1,7 @@
 import "server-only";
 
+import { hasSampleData } from "./sample";
+
 /** Upstream base URL (no trailing slash). */
 export const CDA_UPSTREAM = (process.env.CDA_API_BASE || "https://cryptodataapi.com/api/v1").replace(/\/+$/, "");
 
@@ -18,9 +20,12 @@ export function hasServerKey(): boolean {
   return serverKey().length > 0;
 }
 
-/** Body for GET /api/cda/_status. Reveals only whether a server key exists. */
-export function statusResponse(): Response {
-  return Response.json({ hasServerKey: hasServerKey() }, { headers: { "cache-control": "no-store" } });
+/** Body for GET /api/cda/_status. Reveals only whether a server key / sample snapshots exist. */
+export async function statusResponse(): Promise<Response> {
+  return Response.json(
+    { hasServerKey: hasServerKey(), hasSampleData: await hasSampleData() },
+    { headers: { "cache-control": "no-store" } },
+  );
 }
 
 /** Response headers we pass back to the browser. */

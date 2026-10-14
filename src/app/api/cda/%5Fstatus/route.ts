@@ -7,6 +7,6 @@ import { statusResponse } from "@/lib/cda/server";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-export function GET() {
+export async function GET() {
   return statusResponse();
 }

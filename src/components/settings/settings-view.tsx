@@ -181,6 +181,19 @@ function ApiKeyCard() {
             {access.keyInfo && <KeyInfoGrid info={access.keyInfo} />}
           </div>
         )}
+        {access.source === "sample" && (
+          <div className="flex flex-col gap-2 rounded-lg border border-liq/30 bg-liq/5 p-3">
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="font-medium">Showing sample data</span>
+              <Badge variant="secondary">Snapshot</Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {access.demoMode
+                ? "Demo mode is on, so every page uses the bundled snapshot of CryptoDataApi responses."
+                : "No API key is configured, so every page uses a bundled snapshot of CryptoDataApi responses (whales, wallets, DOGE / BTC / ETH / SOL charts with three days of trade flow). Save a key above and live data replaces it immediately."}
+            </p>
+          </div>
+        )}
         {access.source === "user" && access.hasServerKey && (
           <p className="text-xs text-muted-foreground">Your key takes priority over the server key configured on this deployment.</p>
         )}
@@ -198,9 +211,11 @@ function ModeCard() {
       <CardHeader>
         <CardTitle>Demo mode</CardTitle>
         <CardDescription>
-          {access.hasServerKey
-            ? "Stop sending your own key. This server has a key configured, so data keeps loading through the server key."
-            : "Stop sending your key: the radar shows sample rows and the alerts feed uses the free 30-minute delayed stream. Useful for screenshots or saving rate limit."}
+          {access.hasSampleData
+            ? "Stop sending any key (yours or the server's) and show the bundled sample snapshot everywhere, with the free 30-minute delayed alerts feed. Useful for screenshots or saving rate limit."
+            : access.hasServerKey
+              ? "Stop sending your own key. This server has a key configured, so data keeps loading through the server key."
+              : "Stop sending your key: the radar shows sample rows and the alerts feed uses the free 30-minute delayed stream. Useful for screenshots or saving rate limit."}
         </CardDescription>
       </CardHeader>
       <CardContent>

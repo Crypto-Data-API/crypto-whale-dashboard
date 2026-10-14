@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { sampleResponse } from "@/lib/cda/sample";
 import { CDA_UPSTREAM, PROXY_USER_AGENT, jsonError, pickPassthroughHeaders, safePath, serverKey, statusResponse } from "@/lib/cda/server";
 
 /**
@@ -45,9 +46,17 @@ async function proxy(req: NextRequest, ctx: Ctx): Promise<Response> {
   if (!userKey && !isRead && serverKey()) {
     return jsonError(401, "user_key_required", "Write requests need your own API key; the server key is read-only.");
   }
-  const key = userKey || (isRead ? serverKey() : "");
+  // Demo mode: the browser asks for sample data explicitly, even if a server key exists.
+  const wantsSample = req.headers.get("x-cda-sample") === "1";
+  const key = userKey || (isRead && !wantsSample ? serverKey() : "");
   const usingServerKey = !userKey && key !== "";
   const rawPath = path.join("/");
+
+  // No key at all: answer from the bundled sample snapshots where we can.
+  if (!key && isRead) {
+    const sample = await sampleResponse(rawPath, req.nextUrl.searchParams);
+    if (sample) return sample;
+  }
   if (usingServerKey && SERVER_KEY_BLOCKED.some((re) => re.test(rawPath))) {
     return jsonError(401, "user_key_required", "This account endpoint needs your own API key; the server key cannot read it.");
   }
