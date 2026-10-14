@@ -28,7 +28,7 @@ export function Brand({ onNavigate }: { onNavigate?: () => void }) {
       </span>
       <span className="flex flex-col gap-0.5">
         <span className="font-display text-[16px] font-bold tracking-[.04em] text-ink">
-          WHALE<span className="text-long [text-shadow:0_0_12px_rgba(0,245,212,.6)]">DECK</span>
+          WHALE<span className="text-long [text-shadow:0_0_12px_rgba(0,245,212,.6)]">DESK</span>
         </span>
         <span className="text-[11px] text-ink-muted">powered by CryptoDataApi</span>
       </span>

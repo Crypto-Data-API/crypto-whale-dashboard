@@ -24,8 +24,8 @@ const manrope = Manrope({
 
 export const metadata: Metadata = {
   title: {
-    default: "WhaleDeck · Crypto Whale Radar",
-    template: "%s · WhaleDeck",
+    default: "WhaleDesk · Crypto Whale Dashboard",
+    template: "%s · WhaleDesk",
   },
   description: "Live crypto whale positioning, alerts and whale trades on the chart. Powered by CryptoDataApi.",
 };

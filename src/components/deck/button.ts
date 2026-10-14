@@ -23,7 +23,7 @@ const SIZES: Record<Size, string> = {
   sm: "px-3 py-[7px] text-[12px]",
 };
 
-/** Class names for WhaleDeck buttons, usable on <button>, <a> and <Link>. */
+/** Class names for WhaleDesk buttons, usable on <button>, <a> and <Link>. */
 export function deckButton({ variant = "primary", size = "md", className }: { variant?: Variant; size?: Size; className?: string } = {}): string {
   return cn(BASE, VARIANTS[variant], SIZES[size], className);
 }

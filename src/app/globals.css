@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * WhaleDeck design tokens (dark only).
+ * WhaleDesk design tokens (dark only).
  * Ink: text #e8ecff · bright #f2f4ff · soft #a3a9cc · muted #8a90b4 · dim #6d7399 · dimmer #5d6390
  * Accents: long/cyan #00f5d4 · short/pink #ff2d75 · azure #4d7cff · lilac #b18cff · gold #ffc53d
  * Hairlines and surfaces are tints of iris rgb(120 140 255).
@@ -172,27 +172,6 @@
   }
 }
 
-/* Radar sweep wedge, rotating about the SVG origin (the radar centre). */
-@keyframes radarSweep {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes blipPulse {
-  0% {
-    transform: translate(-50%, -50%) scale(0.6);
-    opacity: 0.9;
-  }
-  100% {
-    transform: translate(-50%, -50%) scale(2.4);
-    opacity: 0;
-  }
-}
-
 @keyframes livePulse {
   0% {
     box-shadow: 0 0 0 0 rgba(0, 245, 212, 0.7);
@@ -205,22 +184,11 @@
   }
 }
 
-.radar-sweep {
-  transform-origin: 0 0;
-  animation: radarSweep 7s linear infinite;
-}
-
-.blip-pulse {
-  animation: blipPulse 1.8s ease-out infinite;
-}
-
 .live-pulse {
   animation: livePulse 1.6s infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .radar-sweep,
-  .blip-pulse,
   .live-pulse {
     animation: none;
   }

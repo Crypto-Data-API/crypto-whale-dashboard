@@ -15,10 +15,10 @@ For live data, run the app yourself with a key. See [Get a key and run it live](
 
 ## Screenshots
 
-| Whale Radar | Whale Exposure |
+| WhaleDesk | Whale Exposure |
 |---|---|
-| ![Whale Radar: coins plotted by whale long/short lean against their 30-day range](docs/screenshots/radar.jpg) | ![Whale Exposure: sortable table of whale gross, long/short, net and 30-day percentile per coin](docs/screenshots/exposure.jpg) |
-| Coins plotted by how far whales lean long or short against their 30-day norm. | Every coin's whale book in one sortable table. |
+| ![WhaleDesk: every coin is a whale; long-leaning whales swim near the surface, short-leaning ones dive deep](docs/screenshots/radar.jpg) | ![Whale Exposure: sortable table of whale gross, long/short, net and 30-day percentile per coin](docs/screenshots/exposure.jpg) |
+| Every coin is a whale, swimming at a depth set by how far whales lean long or short against its 30-day norm. | Every coin's whale book in one sortable table. |
 
 | Whale Alerts | Coin chart |
 |---|---|
@@ -32,7 +32,7 @@ For live data, run the app yourself with a key. See [Get a key and run it live](
 
 ## What it does
 
-- **Whale Radar** – see which coins Hyperliquid whales are leaning long or short, sized by notional and ranked against their 30-day norm.
+- **WhaleDesk** – a 3D ocean of whales, one per coin: long-leaning coins swim near the surface, short-leaning ones dive deep, sized by Hyperliquid whale notional and ranked against their 30-day norm.
 - **Whale Exposure** – every coin's whale gross, long/short split, net, net ex-MM and 30-day percentile in one sortable table.
 - **Whale Accounts** – tracked Hyperliquid whale wallets with their trading style, PnL and open positions.
 - **Whale Alerts** – a live feed of whale position changes, on-chain exchange transfers, liquidations, OI and price moves, with sound and browser notifications.
@@ -69,7 +69,7 @@ Set up the Crypto Whale Dashboard locally (needs Node.js 20.9 or newer).
 2) Run npm install.
 3) Create a .env file in the project root containing CDA_API_KEY=<my CryptoDataApi key>. I will paste the key; if I haven't, ask me for it or tell me to get one at https://cryptodataapi.com/pricing. A free key works for candles and the delayed alerts feed; Pro unlocks whale positioning, the live stream and trade flow.
 4) Run npm run dev and open http://localhost:3000.
-5) Confirm the tier badge in the sidebar shows my plan (FREE, PRO or PRO+, not SAMPLE) and the Whale Radar shows live data.
+5) Confirm the tier badge in the sidebar shows my plan (FREE, PRO or PRO+, not SAMPLE) and the WhaleDesk page shows live data.
 Optional: deploy to Vercel with CDA_API_KEY set as an environment variable. GitHub Pages can only host the sample demo, because the API does not allow browser (CORS) requests.
 ```
 
@@ -145,7 +145,7 @@ npm start
 |---|---|---|---|---|
 | Alerts feed | 30-min delayed (`/stream/delayed`) | 30-min delayed | Live SSE | Live SSE |
 | Coin chart candles, funding/OI, news | – | ✓ | ✓ | ✓ |
-| Whale Radar (`/quant/whales`) | sample data | preview / upsell | ✓ | ✓ |
+| WhaleDesk (`/quant/whales`) | sample data | preview / upsell | ✓ | ✓ |
 | CVD pane (`/hyperliquid/trade-flow`) | – | – | ✓ | ✓ |
 | Quant outlook (`/quant/coins/{symbol}`) | – | – | ✓ | ✓ |
 | 180-day whale history | – | – | – | ✓ |
@@ -174,9 +174,9 @@ scripts/                  sample capture, static build
 src/
   app/                    pages + API route handlers
   components/
-    deck/                 WhaleDeck design components (panel, segmented control, KPI tile, coin logo, icons, get-a-key prompt)
+    deck/                 WhaleDesk design components (panel, segmented control, KPI tile, coin logo, icons, get-a-key prompt)
     layout/               sidebar, coin search, stream / tier / API usage widgets
-    radar/                radar scope, selected-coin card, KPIs, history chart
+    radar/                WhaleDesk ocean (three.js scene), selected-coin card, KPIs, history chart
     exposure/             Whale Exposure table
     accounts/             Whale Accounts table
     alerts/               live feed, event rows, exchange-flow spikes
@@ -196,7 +196,7 @@ See the [API docs](https://cryptodataapi.com/api/docs) for endpoints and plan ti
 
 ## Status
 
-Milestones 0–4 from [PLAN.md](PLAN.md) are built: scaffold, Whale Radar, Whale Alerts, coin page and coin side panel. Traders, Market and Scanners are next.
+Milestones 0–4 from [PLAN.md](PLAN.md) are built: scaffold, WhaleDesk (whale radar), Whale Alerts, coin page and coin side panel. Traders, Market and Scanners are next.
 
 ## License
 

@@ -15,7 +15,7 @@ export function coinLogoUrl(symbol: string): string {
   return `https://app.hyperliquid.xyz/coins/${encodeURIComponent(logoSymbol(symbol))}.svg`;
 }
 
-/** FNV-1a hash of a symbol (stable colours and radar angles). */
+/** FNV-1a hash of a symbol (stable colours). */
 export function symbolHash(s: string): number {
   let h = 2166136261;
   for (const c of s) {

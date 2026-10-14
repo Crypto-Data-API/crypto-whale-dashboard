@@ -6,18 +6,17 @@ import { DeckSkeleton, ErrorState } from "@/components/common/gate-notice";
 import { GetKeyPrompt, useGetKeyBanner } from "@/components/deck/get-key-prompt";
 import { PageHead, RefreshButton, UpdatedAgo } from "@/components/deck/page-head";
 import { useAccess } from "@/hooks/use-access";
-import { CoinSearch } from "@/components/layout/coin-search";
 import { useWhales } from "@/hooks/use-cda-data";
 import { DEMO_WHALE_COINS } from "@/lib/cda/demo";
 import { TIER_LABEL } from "@/lib/cda/types";
 import { DemoBanner, type DemoReason } from "./demo-banner";
-import { RadarLegend, RadarScope } from "./radar-scope";
 import { toRadarCoins, topByGross, type RadarCoin } from "./radar-model";
 import { ExtremesPanel, SelectedCoinCard } from "./selected-coin-card";
 import { WhaleHistoryChart } from "./whale-history-chart";
 import { WhaleKpis } from "./whale-kpis";
+import { OceanLegend, WhaleOcean } from "./whale-ocean";
 
-/** Radar panel + right column (KPIs, selected coin, extremes). */
+/** Ocean panel + right column (selected coin, extremes, KPIs). */
 function RadarSection({
   coins,
   initialSel,
@@ -39,31 +38,30 @@ function RadarSection({
   return (
     <section className="flex flex-wrap gap-[22px]">
       <div className="relative flex min-w-0 flex-[3_1_560px] flex-col gap-1.5 overflow-hidden rounded-[18px] border border-iris/13 bg-panel p-3.5">
-        <CoinSearch className="absolute top-3.5 left-3.5 z-[60] w-[220px]" />
-        <RadarScope coins={coins} selected={current?.symbol ?? null} onSelect={setSelected} sample={sample} />
-        <RadarLegend />
+        <WhaleOcean coins={coins} selected={current?.symbol ?? null} onSelect={setSelected} sample={sample} />
+        <OceanLegend />
       </div>
       <div className="flex min-w-0 flex-[1_1_340px] flex-col gap-4">
-        {kpis}
         {current ? (
           <SelectedCoinCard rc={current} onOpen={() => router.push(`/coin/${encodeURIComponent(current.symbol)}`)} />
         ) : (
           <div className="rounded-[18px] border border-iris/13 bg-panel p-[22px] text-[13px] text-ink-muted">No coins with whale positioning yet.</div>
         )}
         <ExtremesPanel coins={coins} onSelect={setSelected} />
+        {kpis}
       </div>
     </section>
   );
 }
 
-/** Radar for the current URL: `/?sel=ETH` preselects a coin (Whale Exposure table, coin page "back"). */
+/** WhaleDesk for the current URL: `/?sel=ETH` preselects a coin (Whale Exposure table, coin page "back"). */
 export function WhaleRadarFromUrl() {
   const raw = useSearchParams().get("sel");
   const initialSel = raw ? raw.trim().slice(0, 32) || null : null;
   return <WhaleRadarView key={initialSel ?? ""} initialSel={initialSel} />;
 }
 
-/** Sample-data call to action above the radar (hidden in Demo mode and once dismissed). */
+/** Sample-data call to action above the ocean (hidden in Demo mode and once dismissed). */
 function SampleBanner() {
   const access = useAccess();
   const banner = useGetKeyBanner();
@@ -81,7 +79,7 @@ export function WhaleRadarView({ initialSel }: { initialSel: string | null }) {
 
   const header = (
     <PageHead
-      title="Crypto Whale Radar"
+      title="WhaleDesk"
       right={
         gate === "ok" && (
           <>
@@ -98,16 +96,17 @@ export function WhaleRadarView({ initialSel }: { initialSel: string | null }) {
       <>
         {header}
         <section className="flex flex-wrap gap-[22px]">
-          <div className="flex min-w-0 flex-[3_1_560px] items-center justify-center rounded-[18px] border border-iris/13 bg-panel p-3.5">
-            <DeckSkeleton className="aspect-square w-[min(100%,max(560px,calc(100vh-190px)))] rounded-full" />
+          <div className="flex min-w-0 flex-[3_1_560px] flex-col gap-1.5 rounded-[18px] border border-iris/13 bg-panel p-3.5">
+            <DeckSkeleton className="h-[max(520px,calc(100vh-196px))] rounded-[12px]" />
           </div>
           <div className="flex min-w-0 flex-[1_1_340px] flex-col gap-4">
+            <DeckSkeleton className="h-[420px] rounded-[18px]" />
+            <DeckSkeleton className="h-[190px] rounded-[18px]" />
             <div className="grid grid-cols-2 gap-2">
               {Array.from({ length: 6 }, (_, i) => (
                 <DeckSkeleton key={i} className="h-[58px]" />
               ))}
             </div>
-            <DeckSkeleton className="h-[420px] rounded-[18px]" />
           </div>
         </section>
       </>

@@ -27,7 +27,7 @@ export const AGENT_PROMPT = `Set up the Crypto Whale Dashboard locally (needs No
 2) Run npm install.
 3) Create a .env file in the project root containing CDA_API_KEY=<my CryptoDataApi key>. I will paste the key; if I haven't, ask me for it or tell me to get one at ${PRICING_URL}. A free key works for candles and the delayed alerts feed; Pro unlocks whale positioning, the live stream and trade flow.
 4) Run npm run dev and open http://localhost:3000.
-5) Confirm the tier badge in the sidebar shows my plan (FREE, PRO or PRO+, not SAMPLE) and the Whale Radar shows live data.
+5) Confirm the tier badge in the sidebar shows my plan (FREE, PRO or PRO+, not SAMPLE) and the WhaleDesk page shows live data.
 Optional: deploy to Vercel with CDA_API_KEY set as an environment variable. GitHub Pages can only host the sample demo, because the API does not allow browser (CORS) requests.`;
 
 const DISMISS_KEY = "cwd-get-key-dismissed";
@@ -163,7 +163,7 @@ function RunSteps() {
 
 /**
  * "Get a key / run it live" call to action for visitors on sample data.
- * banner : radar page, collapsible, with a dismiss button.
+ * banner : WhaleDesk page, collapsible, with a dismiss button.
  * panel  : Settings, always expanded.
  */
 export function GetKeyPrompt({ variant = "panel", onDismiss, className }: { variant?: "banner" | "panel"; onDismiss?: () => void; className?: string }) {

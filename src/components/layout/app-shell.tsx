@@ -35,7 +35,7 @@ function MobileBar() {
           <WhaleMark size={18} />
         </span>
         <span className="font-display text-[15px] font-bold tracking-[.04em]">
-          WHALE<span className="text-long">DECK</span>
+          WHALE<span className="text-long">DESK</span>
         </span>
       </Link>
       <div className="ml-auto flex items-center gap-3">

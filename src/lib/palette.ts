@@ -1,5 +1,5 @@
 /**
- * WhaleDeck colour tokens as plain strings, for inline styles and for
+ * WhaleDesk colour tokens as plain strings, for inline styles and for
  * canvas/SVG libraries (lightweight-charts, Recharts) that cannot read CSS
  * variables. Keep in sync with the @theme block in src/app/globals.css.
  */

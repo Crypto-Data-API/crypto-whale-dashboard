@@ -1,6 +1,6 @@
 import type { SVGProps } from "react";
 
-/** Icons drawn in the WhaleDeck design (24px grid, 2px stroke). */
+/** Icons drawn in the WhaleDesk design (24px grid, 2px stroke). */
 type IconProps = SVGProps<SVGSVGElement> & { size?: number };
 
 function base(size: number, props: SVGProps<SVGSVGElement>) {

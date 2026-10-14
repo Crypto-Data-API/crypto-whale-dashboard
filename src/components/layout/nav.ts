@@ -5,14 +5,14 @@ export interface NavItem {
   href: string;
   label: string;
   icon: ComponentType<{ size?: number; stroke?: string; className?: string }>;
-  /** Extra path prefixes that count as this section (coin pages belong to the radar). */
+  /** Extra path prefixes that count as this section (coin pages belong to WhaleDesk). */
   also?: string[];
   /** Show the live alert counter pill. */
   alertCount?: boolean;
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { href: "/", label: "Whale Radar", icon: RadarIcon, also: ["/coin/"] },
+  { href: "/", label: "WhaleDesk", icon: RadarIcon, also: ["/coin/"] },
   { href: "/exposure", label: "Whale Exposure", icon: ExposureIcon },
   { href: "/alerts", label: "Whale Alerts", icon: BellIcon, alertCount: true },
   { href: "/accounts", label: "Whale Accounts", icon: AccountsIcon },
