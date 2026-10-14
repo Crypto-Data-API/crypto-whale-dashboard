@@ -1,24 +1,75 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { ErrorState, GateNotice } from "@/components/common/gate-notice";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
+import { DeckSkeleton, ErrorState, GateNotice } from "@/components/common/gate-notice";
+import { deckButton } from "@/components/deck/button";
+import { CoinLogo } from "@/components/deck/coin-logo";
+import { Segmented } from "@/components/deck/segmented";
 import { useSpikeAlerts } from "@/hooks/use-cda-data";
 import { useNow } from "@/hooks/use-now";
-import { fmtClock, fmtCompact, fmtInt, fmtUsd, relTime } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import type { ExchangeFlowSpike } from "@/lib/cda/types";
+import { fmtCompact, fmtInt, fmtUsd, relTime } from "@/lib/format";
+import { DECK } from "@/lib/palette";
 
 const MIN_AMOUNTS = [1_000_000, 5_000_000, 10_000_000, 25_000_000];
+const PAGE = 48;
 
 type Dir = "all" | "inflow" | "outflow";
 
+function cap(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
+function SpikeCard({ s, now, onOpen }: { s: ExchangeFlowSpike; now: number; onOpen: () => void }) {
+  const out = s.direction === "outflow";
+  const known = s.direction === "outflow" || s.direction === "inflow";
+  const color = !known ? DECK.blueSoft : out ? DECK.long : DECK.short;
+  const glow = !known ? "rgba(125,155,255,.5)" : out ? "rgba(0,245,212,.5)" : "rgba(255,45,117,.5)";
+  const border = !known ? "rgba(120,140,255,.13)" : out ? "rgba(0,245,212,.25)" : "rgba(255,45,117,.25)";
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="relative flex cursor-pointer flex-col gap-3.5 overflow-hidden rounded-[16px] border bg-[linear-gradient(180deg,rgba(18,21,40,.9),rgba(9,11,22,.9))] p-[18px] text-left transition-shadow hover:shadow-[0_0_30px_rgba(77,124,255,.2)]"
+      style={{ borderColor: border }}
+    >
+      <div className="pointer-events-none absolute -top-10 -right-10 size-[140px] rounded-full opacity-[.12] blur-[36px]" style={{ background: color }} />
+      <div className="relative flex items-center gap-2.5">
+        <CoinLogo symbol={s.symbol} size={34} style={{ boxShadow: `0 0 14px ${glow}` }} />
+        <div className="flex min-w-0 flex-col">
+          <span className="font-display text-[16px] font-bold">{s.symbol}</span>
+          <span className="truncate text-[11.5px] text-ink-muted">
+            {cap(s.exchange ?? "Exchange")} · {relTime(s.ts, now)}
+          </span>
+        </div>
+        <span
+          className="ml-auto shrink-0 rounded-[20px] border px-[9px] py-1 font-display text-[10.5px] font-bold tracking-[.08em]"
+          style={{ color, borderColor: color }}
+        >
+          {known ? s.direction.toUpperCase() : "TRANSFER"}
+        </span>
+      </div>
+      <div className="relative flex flex-wrap items-baseline justify-between gap-2.5">
+        <span className="font-display text-[30px] leading-tight font-bold" style={{ color, textShadow: `0 0 16px ${glow}` }}>
+          {fmtUsd(s.amountUsd)}
+        </span>
+        <span className="font-mono text-[13px] text-ink">
+          {s.amount !== null ? `${fmtCompact(s.amount, 2)} ${s.unit ?? s.symbol}` : (s.unit ?? s.symbol)}
+          {s.chain && <span className="text-ink-dim"> on {s.chain.toUpperCase()}</span>}
+        </span>
+      </div>
+    </button>
+  );
+}
+
 /** Large CEX wallet transfers from /on-chain/exchange-flows/spike-alerts (~10h window). */
 export function SpikeAlerts() {
+  const router = useRouter();
   const [minAmount, setMinAmount] = useState(MIN_AMOUNTS[0]);
   const [dir, setDir] = useState<Dir>("all");
   const [symbol, setSymbol] = useState("");
+  const [limit, setLimit] = useState(PAGE);
   const q = useSpikeAlerts(minAmount);
   const now = useNow(10_000);
 
@@ -38,143 +89,91 @@ export function SpikeAlerts() {
   }, [rows]);
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-end gap-3 rounded-xl bg-card p-3 ring-1 ring-foreground/10">
-        <div className="flex flex-col gap-1">
-          <span className="text-xs text-muted-foreground">Min transfer</span>
-          <Select value={String(minAmount)} onValueChange={(v) => setMinAmount(Number(v))}>
-            <SelectTrigger size="sm" className="w-28">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {MIN_AMOUNTS.map((m) => (
-                <SelectItem key={m} value={String(m)}>
-                  {fmtUsd(m)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <span className="text-xs text-muted-foreground">Direction</span>
-          <div className="flex rounded-md border border-input p-0.5 text-xs" role="radiogroup" aria-label="Direction">
-            {(["all", "inflow", "outflow"] as const).map((d) => (
-              <button
-                key={d}
-                type="button"
-                role="radio"
-                aria-checked={dir === d}
-                onClick={() => setDir(d)}
-                className={cn(
-                  "flex items-center gap-1 rounded px-2 py-0.5 capitalize",
-                  dir === d ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {d !== "all" && <span className={cn("size-1.5 rounded-full", d === "outflow" ? "bg-long" : "bg-short")} />}
-                {d}
-              </button>
-            ))}
+    <>
+      <div className="flex flex-col gap-4 rounded-[18px] border border-iris/13 bg-panel p-4 sm:p-5">
+        <div className="flex flex-wrap items-end gap-6">
+          <div className="flex flex-col gap-2">
+            <span className="text-[12px] text-ink-soft">Min transfer</span>
+            <Segmented<number>
+              variant="mini"
+              ariaLabel="Minimum transfer"
+              value={minAmount}
+              onChange={(v) => {
+                setMinAmount(v);
+                setLimit(PAGE);
+              }}
+              options={MIN_AMOUNTS.map((m) => ({ value: m, label: fmtUsd(m) }))}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="text-[12px] text-ink-soft">Direction</span>
+            <Segmented<Dir>
+              variant="filter"
+              ariaLabel="Direction"
+              value={dir}
+              onChange={setDir}
+              options={[
+                { value: "all", label: "All", dot: DECK.muted },
+                { value: "outflow", label: "Outflow", dot: DECK.long },
+                { value: "inflow", label: "Inflow", dot: DECK.short },
+              ]}
+            />
+          </div>
+          <label className="flex flex-col gap-2">
+            <span className="text-[12px] text-ink-soft">Symbol</span>
+            <input
+              value={symbol}
+              onChange={(e) => setSymbol(e.target.value)}
+              placeholder="All"
+              className="w-[120px] rounded-[10px] border border-iris/16 bg-field px-3 py-[9px] font-mono text-[12px] text-ink outline-none focus:border-long/40"
+            />
+          </label>
+          <div className="ml-auto flex flex-wrap gap-x-5 gap-y-1 font-mono text-[12px] text-ink-muted">
+            <span className="flex items-center gap-2">
+              <span className="size-2 rounded-full bg-long shadow-[0_0_8px_#00f5d4]" /> Outflow <span className="text-ink">{fmtUsd(totals.outflow)}</span>
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="size-2 rounded-full bg-short shadow-[0_0_8px_#ff2d75]" /> Inflow <span className="text-ink">{fmtUsd(totals.inflow)}</span>
+            </span>
           </div>
         </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="spike-sym" className="text-xs text-muted-foreground">
-            Symbol
-          </label>
-          <input
-            id="spike-sym"
-            value={symbol}
-            onChange={(e) => setSymbol(e.target.value)}
-            placeholder="All"
-            className="h-7 w-24 rounded-md border border-input bg-muted/40 px-2 text-xs outline-none focus-visible:border-ring"
-          />
-        </div>
-        <div className="ml-auto flex gap-4 text-xs">
-          <span className="flex items-center gap-1.5">
-            <span className="size-2 rounded-full bg-short" aria-hidden /> Inflow {fmtUsd(totals.inflow)}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="size-2 rounded-full bg-long" aria-hidden /> Outflow {fmtUsd(totals.outflow)}
-          </span>
-        </div>
       </div>
-      <p className="text-[11px] text-muted-foreground">
-        Inflows to exchanges often precede selling (coral); outflows to self-custody are usually read as accumulation (green).
+
+      <p className="m-0 text-[13px] text-ink-muted">
+        Large exchange wallet transfers over roughly the last 10 hours. Inflows often precede selling; outflows to self-custody usually read as accumulation.
       </p>
 
       {q.gate !== "ok" ? (
         <GateNotice gate={q.gate} requiredTier={q.requiredTier} feature="Exchange flow spike alerts" />
       ) : q.isLoading ? (
-        <Skeleton className="h-64 w-full" />
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-3.5">
+          {Array.from({ length: 6 }, (_, i) => (
+            <DeckSkeleton key={i} className="h-[150px] rounded-[16px]" />
+          ))}
+        </div>
       ) : q.error && !q.data ? (
         <ErrorState error={q.error} onRetry={q.refetch} />
+      ) : rows.length === 0 ? (
+        <div className="rounded-[18px] border border-iris/13 bg-panel px-5 py-[60px] text-center text-[14px] text-ink-muted">No spikes match the filters.</div>
       ) : (
-        <div className="overflow-x-auto rounded-xl bg-card ring-1 ring-foreground/10">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/40 text-xs text-muted-foreground">
-              <tr>
-                <th scope="col" className="px-3 py-2 text-left font-medium">
-                  Time
-                </th>
-                <th scope="col" className="px-3 py-2 text-left font-medium">
-                  Coin
-                </th>
-                <th scope="col" className="px-3 py-2 text-left font-medium">
-                  Exchange
-                </th>
-                <th scope="col" className="hidden px-3 py-2 text-left font-medium sm:table-cell">
-                  Chain
-                </th>
-                <th scope="col" className="px-3 py-2 text-left font-medium">
-                  Direction
-                </th>
-                <th scope="col" className="hidden px-3 py-2 text-right font-medium sm:table-cell">
-                  Amount
-                </th>
-                <th scope="col" className="px-3 py-2 text-right font-medium">
-                  USD
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr key={`${r.ts}-${r.symbol}-${r.exchange}-${i}`} className="border-t border-border">
-                  <td className="px-3 py-1.5 whitespace-nowrap">
-                    <span className="tabular text-xs">{fmtClock(r.ts)}</span>
-                    <span className="ml-1.5 text-[10px] text-muted-foreground">{relTime(r.ts, now)}</span>
-                  </td>
-                  <td className="px-3 py-1.5">
-                    <Link href={`/coin/${encodeURIComponent(r.symbol)}`} className="font-mono text-xs font-semibold hover:underline">
-                      {r.symbol}
-                    </Link>
-                  </td>
-                  <td className="px-3 py-1.5 capitalize">{r.exchange ?? "—"}</td>
-                  <td className="hidden px-3 py-1.5 text-muted-foreground uppercase sm:table-cell">{r.chain ?? "—"}</td>
-                  <td className="px-3 py-1.5">
-                    <span className="inline-flex items-center gap-1 rounded border border-border px-1.5 text-[10px] font-semibold tracking-wide uppercase">
-                      <span className={cn("size-1.5 rounded-full", r.direction === "outflow" ? "bg-long" : r.direction === "inflow" ? "bg-short" : "bg-muted-foreground")} />
-                      {r.direction || "?"}
-                    </span>
-                  </td>
-                  <td className="tabular hidden px-3 py-1.5 text-right sm:table-cell">
-                    {fmtCompact(r.amount, 2)} {r.unit ?? r.symbol}
-                  </td>
-                  <td className="tabular px-3 py-1.5 text-right font-medium">{fmtUsd(r.amountUsd)}</td>
-                </tr>
-              ))}
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-3 py-8 text-center text-sm text-muted-foreground">
-                    No spikes match the filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-          <p className="border-t border-border px-3 py-2 text-[11px] text-muted-foreground">
-            {fmtInt(rows.length)} transfers · refreshed every few minutes
-          </p>
-        </div>
+        <>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(300px,100%),1fr))] gap-3.5">
+            {rows.slice(0, limit).map((r, i) => (
+              <SpikeCard key={`${r.ts}-${r.symbol}-${r.exchange}-${i}`} s={r} now={now} onOpen={() => router.push(`/coin/${encodeURIComponent(r.symbol)}`)} />
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-4 font-mono text-[12px] text-ink-muted">
+            <span>
+              Showing {fmtInt(Math.min(limit, rows.length))} of {fmtInt(rows.length)} transfers · refreshed every few minutes
+            </span>
+            {rows.length > limit && (
+              <button type="button" onClick={() => setLimit((l) => l + PAGE)} className={deckButton({ variant: "ghost", size: "sm" })}>
+                SHOW MORE
+              </button>
+            )}
+          </div>
+        </>
       )}
-    </div>
+    </>
   );
 }

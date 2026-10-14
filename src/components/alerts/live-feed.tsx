@@ -1,31 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Bell, BellOff, Clock, Pause, Play, RotateCw, Trash, Volume2, VolumeX } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
+import { deckButton } from "@/components/deck/button";
+import { ClockIcon } from "@/components/deck/icons";
 import { useNow } from "@/hooks/use-now";
 import { streamManager } from "@/lib/cda/stream";
 import { EVENT_LABEL, EVENT_TYPES, isEventType, type CdaEvent, type EventType } from "@/lib/cda/types";
 import { exceedsThreshold, matchesFeed, parseSymbolFilter } from "@/lib/events";
 import { fmtClock, fmtInt, fmtUsd } from "@/lib/format";
 import { requestNotificationPermission, unlockAudio } from "@/lib/notify";
-import { cn } from "@/lib/utils";
+import { DECK } from "@/lib/palette";
 import { useSettings } from "@/stores/settings";
-import { useStream } from "@/stores/stream";
-import { EventRow, TYPE_META } from "./event-row";
+import { useStream, type StreamStatus } from "@/stores/stream";
+import { EventRow, TYPE_STYLE } from "./event-row";
 
 const RENDER_CAP = 300;
-const USD_STEPS = [0, 1_000, 10_000, 50_000, 100_000, 250_000, 500_000, 1_000_000, 5_000_000, 10_000_000];
+const MINS = [0, 10_000, 50_000, 100_000, 500_000, 1_000_000];
+const MIN_LABELS = ["Any", "$10K", "$50K", "$100K", "$500K", "$1M"];
+const FRESH_MS = 4500;
 
-function stepIndex(v: number): number {
+function minIndex(v: number): number {
   let idx = 0;
-  USD_STEPS.forEach((s, i) => {
-    if (v >= s) idx = i;
+  MINS.forEach((m, i) => {
+    if (v >= m) idx = i;
   });
   return idx;
 }
@@ -36,51 +35,111 @@ function DelayedBanner() {
   const windowEnd = useStream((s) => s.delayedWindowEnd);
   if (mode !== "delayed") return null;
   return (
-    <div className="flex flex-wrap items-start gap-3 rounded-lg border border-liq/40 bg-liq/5 px-3 py-2.5 text-sm">
-      <Clock className="mt-0.5 size-4 shrink-0 text-liq" aria-hidden />
-      <div className="min-w-0 flex-1">
-        <p className="font-medium">Delayed (30 min)</p>
-        <p className="text-muted-foreground">
-          {message ? `${message} ` : ""}Without a Pro key the feed polls the free delayed stream every 60s: a 3-minute window that ended 30
-          minutes ago{windowEnd ? ` (latest window ended ${fmtClock(windowEnd)})` : ""}.
+    <div className="flex flex-wrap items-start gap-4 rounded-[18px] border border-gold/35 bg-[linear-gradient(180deg,rgba(255,197,61,.07),rgba(9,11,22,.8))] px-5 py-4">
+      <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-gold/12 text-gold">
+        <ClockIcon size={17} />
+      </span>
+      <div className="min-w-0 flex-1 basis-72">
+        <p className="m-0 font-display text-[15px] font-semibold text-gold">Delayed (30 min)</p>
+        <p className="m-0 mt-1 text-[13px] text-ink-muted">
+          {message ? `${message} ` : ""}Without a Pro key the feed polls the free delayed stream every 60s: a 3-minute window that ended 30 minutes ago
+          {windowEnd ? ` (latest window ended ${fmtClock(windowEnd)})` : ""}.
         </p>
       </div>
-      <Button asChild size="sm" variant="secondary">
-        <Link href="/settings">Add a Pro key for real-time</Link>
-      </Button>
+      <Link href="/settings" className={deckButton({ size: "sm" })}>
+        ADD A PRO KEY FOR REAL-TIME
+      </Link>
     </div>
   );
 }
 
-function StreamBar({ onReconnect }: { onReconnect: () => void }) {
-  const status = useStream((s) => s.status);
-  const message = useStream((s) => s.message);
-  const total = useStream((s) => s.events.length);
-  const liveReceived = useStream((s) => s.liveReceived);
-  const mode = useStream((s) => s.mode);
+const STREAM_TEXT: Record<StreamStatus, { text: string; color: string }> = {
+  live: { text: "Live", color: DECK.long },
+  delayed: { text: "Delayed 30m", color: DECK.amber },
+  connecting: { text: "Connecting…", color: DECK.amber },
+  reconnecting: { text: "Reconnecting…", color: DECK.amber },
+  error: { text: "Error", color: DECK.short },
+  off: { text: "Off", color: DECK.short },
+  idle: { text: "Idle", color: DECK.dim },
+};
+
+/** Toggle button from the design: coloured border + glow when on. */
+function ToggleButton({
+  on,
+  color,
+  glyph,
+  label,
+  onClick,
+  title,
+}: {
+  on: boolean;
+  color: string;
+  glyph: string;
+  label: string;
+  onClick: () => void;
+  title?: string;
+}) {
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-      <span>
-        Stream: <span className="font-medium text-foreground capitalize">{status}</span>
-        {message && status !== "delayed" ? ` · ${message}` : ""}
-      </span>
-      <span>{fmtInt(total)} buffered</span>
-      {mode === "live" && <span>{fmtInt(liveReceived)} received live</span>}
-      <Button size="xs" variant="ghost" onClick={onReconnect} className="-ml-1">
-        <RotateCw /> Reconnect
-      </Button>
-    </div>
+    <button
+      type="button"
+      aria-pressed={on}
+      title={title}
+      onClick={onClick}
+      className="flex cursor-pointer items-center gap-[7px] rounded-[10px] border px-3.5 py-[9px] font-display text-[12.5px] font-semibold tracking-[.05em] transition-colors"
+      style={
+        on
+          ? { color, background: "rgba(0,245,212,.08)", borderColor: color, boxShadow: `0 0 14px ${color}44` }
+          : { color: DECK.soft, background: "transparent", borderColor: "rgba(120,140,255,.16)" }
+      }
+    >
+      {glyph} {label}
+    </button>
   );
+}
+
+/** Ids of live SSE events received in the last few seconds (row highlight). */
+function useFreshIds(): ReadonlySet<number> {
+  const [fresh, setFresh] = useState<ReadonlySet<number>>(() => new Set());
+  useEffect(() => {
+    const timers = new Set<ReturnType<typeof setTimeout>>();
+    const off = streamManager.onLiveEvents((events) => {
+      const ids = events.map((e) => e.id);
+      setFresh((prev) => {
+        const next = new Set(prev);
+        for (const id of ids) next.add(id);
+        return next;
+      });
+      const t = setTimeout(() => {
+        timers.delete(t);
+        setFresh((prev) => {
+          const next = new Set(prev);
+          for (const id of ids) next.delete(id);
+          return next;
+        });
+      }, FRESH_MS);
+      timers.add(t);
+    });
+    return () => {
+      off();
+      for (const t of timers) clearTimeout(t);
+    };
+  }, []);
+  return fresh;
 }
 
 export function LiveFeed() {
   const events = useStream((s) => s.events);
   const clear = useStream((s) => s.clear);
+  const status = useStream((s) => s.status);
+  const streamMessage = useStream((s) => s.message);
+  const mode = useStream((s) => s.mode);
+  const liveReceived = useStream((s) => s.liveReceived);
   const feed = useSettings((s) => s.feed);
   const thresholds = useSettings((s) => s.thresholds);
   const setFeed = useSettings((s) => s.setFeed);
   const setFeedType = useSettings((s) => s.setFeedType);
   const now = useNow(5000);
+  const fresh = useFreshIds();
   const [frozen, setFrozen] = useState<CdaEvent[] | null>(null);
 
   const source = frozen ?? events;
@@ -105,122 +164,150 @@ export function LiveFeed() {
     const lastFrozenId = frozen.length ? frozen[frozen.length - 1].id : 0;
     for (let i = events.length - 1; i >= 0 && events[i].id > lastFrozenId; i--) newWhilePaused++;
   }
-  const minIdx = stepIndex(feed.minUsd);
+  const minIdx = minIndex(feed.minUsd);
+  const minLabel = feed.minUsd === MINS[minIdx] ? MIN_LABELS[minIdx] : `≥ ${fmtUsd(feed.minUsd)}`;
+  const stream = frozen ? { text: "Paused", color: DECK.amber } : STREAM_TEXT[status];
 
   return (
-    <div className="flex flex-col gap-3">
+    <>
       <DelayedBanner />
 
-      <div className="flex flex-col gap-3 rounded-xl bg-card p-3 ring-1 ring-foreground/10">
-        <fieldset className="flex flex-wrap gap-x-4 gap-y-2">
-          <legend className="sr-only">Event types</legend>
+      <div className="flex flex-col gap-[18px] rounded-[18px] border border-iris/13 bg-panel p-4 sm:p-5">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Event types">
           {EVENT_TYPES.map((type: EventType) => {
-            const Icon = TYPE_META[type].icon;
+            const on = feed.types[type];
+            const st = TYPE_STYLE[type];
             return (
-              <div key={type} className="flex items-center gap-1.5">
-                <Checkbox id={`t-${type}`} checked={feed.types[type]} onCheckedChange={(v) => setFeedType(type, v === true)} />
-                <Label htmlFor={`t-${type}`} className="flex items-center gap-1 text-xs font-normal">
-                  <Icon className={cn("size-3", TYPE_META[type].chip.split(" ")[1])} aria-hidden />
-                  {EVENT_LABEL[type]}
-                  <span className="tabular text-muted-foreground">{fmtInt(counts[type] ?? 0)}</span>
-                </Label>
-              </div>
+              <button
+                key={type}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setFeedType(type, !on)}
+                className="flex cursor-pointer items-center gap-2 rounded-[10px] border px-[13px] py-2 font-sans text-[13px] font-semibold transition-colors"
+                style={
+                  on
+                    ? { color: DECK.text, background: "rgba(120,140,255,.08)", borderColor: "rgba(120,140,255,.3)" }
+                    : { color: DECK.dim, background: "transparent", borderColor: "rgba(120,140,255,.12)" }
+                }
+              >
+                <span
+                  className="grid size-[22px] place-items-center rounded-[7px] text-[12px]"
+                  style={{ color: st.color, background: on ? "rgba(120,140,255,.12)" : "transparent", opacity: on ? 1 : 0.4 }}
+                  aria-hidden
+                >
+                  {st.glyph}
+                </span>
+                {EVENT_LABEL[type]}
+                <span className="font-mono text-[11px] text-ink-muted">{fmtInt(counts[type] ?? 0)}</span>
+              </button>
             );
           })}
-        </fieldset>
+        </div>
 
-        <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
-          <div className="flex w-full max-w-64 flex-col gap-1.5">
-            <Label className="flex justify-between text-xs font-normal">
+        <div className="flex flex-wrap items-end gap-6">
+          <label className="flex w-[240px] flex-col gap-2">
+            <span className="flex justify-between text-[12px] text-ink-soft">
               <span>Min size</span>
-              <span className="tabular font-medium">{feed.minUsd > 0 ? `≥ ${fmtUsd(feed.minUsd)}` : "Any"}</span>
-            </Label>
-            <Slider
-              min={0}
-              max={USD_STEPS.length - 1}
-              step={1}
-              value={[minIdx]}
-              onValueChange={(v) => setFeed({ minUsd: USD_STEPS[v[0] ?? 0] })}
-              aria-label="Minimum USD size"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="sym-filter" className="text-xs font-normal">
-              Symbols
-            </Label>
+              <span className="font-mono text-long">{minLabel}</span>
+            </span>
             <input
-              id="sym-filter"
+              type="range"
+              min={0}
+              max={MINS.length - 1}
+              step={1}
+              value={minIdx}
+              onChange={(e) => setFeed({ minUsd: MINS[Number(e.target.value)] ?? 0 })}
+              aria-label="Minimum USD size"
+              className="w-full cursor-pointer accent-long"
+            />
+          </label>
+          <label className="flex flex-col gap-2">
+            <span className="text-[12px] text-ink-soft">Symbols</span>
+            <input
               value={feed.symbols}
               onChange={(e) => setFeed({ symbols: e.target.value })}
               placeholder="e.g. BTC, ETH (blank = all)"
-              className="h-7 w-52 rounded-md border border-input bg-muted/40 px-2 text-xs outline-none focus-visible:border-ring"
+              className="w-[240px] rounded-[10px] border border-iris/16 bg-field px-3 py-[9px] font-mono text-[12px] text-ink outline-none focus:border-long/40"
             />
-          </div>
-          <div className="ml-auto flex flex-wrap items-center gap-1.5">
-            <Button size="sm" variant={frozen ? "default" : "secondary"} onClick={() => setFrozen(frozen ? null : events)}>
-              {frozen ? <Play /> : <Pause />}
-              {frozen ? `Resume${newWhilePaused ? ` (+${newWhilePaused})` : ""}` : "Pause"}
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              aria-pressed={feed.sound}
+          </label>
+          <div className="ml-auto flex flex-wrap gap-2">
+            <ToggleButton
+              on={frozen !== null}
+              color={DECK.amber}
+              glyph={frozen ? "▶" : "❚❚"}
+              label={frozen ? `RESUME${newWhilePaused ? ` (+${newWhilePaused})` : ""}` : "PAUSE"}
+              onClick={() => setFrozen(frozen ? null : events)}
+            />
+            <ToggleButton
+              on={feed.sound}
+              color={DECK.long}
+              glyph="♪"
+              label="SOUND"
+              title="Beep for live events above your per-type thresholds (Settings)"
               onClick={() => {
                 if (!feed.sound) unlockAudio();
                 setFeed({ sound: !feed.sound });
               }}
-            >
-              {feed.sound ? <Volume2 /> : <VolumeX />}
-              Sound
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              aria-pressed={feed.notifications}
+            />
+            <ToggleButton
+              on={feed.notifications}
+              color={DECK.long}
+              glyph={feed.notifications ? "●" : "○"}
+              label="NOTIFY"
+              title="Browser notifications for live events above your per-type thresholds (Settings)"
               onClick={async () => {
                 if (feed.notifications) return setFeed({ notifications: false });
                 const perm = await requestNotificationPermission();
                 if (perm === "granted") setFeed({ notifications: true });
                 else toast.error(perm === "unsupported" ? "This browser does not support notifications." : "Notification permission was not granted.");
               }}
-            >
-              {feed.notifications ? <Bell /> : <BellOff />}
-              Notify
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => clear()} aria-label="Clear buffered events">
-              <Trash />
-            </Button>
+            />
+            <button type="button" title="Clear feed" onClick={() => clear()} className={deckButton({ variant: "danger", className: "px-3 py-[9px] text-[12.5px] tracking-normal" })}>
+              CLEAR
+            </button>
           </div>
         </div>
-        <p className="text-[11px] text-muted-foreground">
-          Sound and notifications fire for live events above your per-type thresholds (
-          <Link href="/settings" className="underline underline-offset-2">
-            Settings
-          </Link>
-          ). Min size applies to events that carry a USD value.
-        </p>
       </div>
 
-      <StreamBar onReconnect={() => streamManager.restart()} />
-
-      <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
-        {rows.length === 0 ? (
-          <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-            {events.length === 0 ? "Waiting for events…" : "No events match the current filters."}
-          </div>
-        ) : (
-          <ul aria-label="Whale alert feed">
-            {rows.map((e) => (
-              <EventRow key={e.id} event={e} now={now} highlight={isEventType(e.type) && exceedsThreshold(e, thresholds)} />
-            ))}
-          </ul>
+      <div className="flex flex-wrap items-center gap-x-[18px] gap-y-2 font-mono text-[12px] text-ink-muted">
+        <span className="flex items-center gap-2" title={streamMessage ?? undefined}>
+          Stream
+          <span className="size-2 rounded-full" style={{ background: stream.color, boxShadow: `0 0 10px ${stream.color}` }} />
+          <span style={{ color: stream.color }}>{stream.text}</span>
+        </span>
+        <span>
+          <span className="text-ink">{fmtInt(source.length)}</span> buffered
+        </span>
+        {mode === "live" && (
+          <span>
+            <span className="text-ink">{fmtInt(liveReceived)}</span> received live
+          </span>
         )}
+        <button type="button" onClick={() => streamManager.restart()} className="cursor-pointer border-0 bg-transparent p-0 font-mono text-[12px] text-ink-dim hover:text-long">
+          ↻ reconnect
+        </button>
+        <span className="ml-auto">
+          Showing {fmtInt(matched)} of {fmtInt(source.length)}
+        </span>
+      </div>
+
+      <div className="overflow-hidden rounded-[18px] border border-iris/13 bg-panel">
+        <div className="flex flex-col" role="list" aria-label="Whale alert feed">
+          {rows.map((e) => (
+            <EventRow key={e.id} event={e} now={now} fresh={fresh.has(e.id)} highlight={isEventType(e.type) && exceedsThreshold(e, thresholds)} />
+          ))}
+          {rows.length === 0 && (
+            <div className="px-5 py-[60px] text-center text-[14px] text-ink-muted">
+              {source.length === 0 ? "Waiting for events…" : "No events match these filters yet."}
+            </div>
+          )}
+        </div>
         {matched > rows.length && (
-          <p className="border-t border-border px-3 py-2 text-center text-xs text-muted-foreground">
+          <p className="m-0 border-t border-iris/7 px-4 py-2.5 text-center font-mono text-[11.5px] text-ink-dim">
             Showing the newest {fmtInt(rows.length)} of {fmtInt(matched)} matching events.
           </p>
         )}
       </div>
-    </div>
+    </>
   );
 }
