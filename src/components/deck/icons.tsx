@@ -102,6 +102,17 @@ export function MenuIcon({ size = 20, ...p }: IconProps) {
   );
 }
 
+/** Sidebar toggle: a panel with a chevron pointing the way the sidebar will move. */
+export function SidebarIcon({ size = 18, open = true, ...p }: IconProps & { open?: boolean }) {
+  return (
+    <svg {...base(size, p)}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M9 4v16" />
+      <path d={open ? "M16 10l-2 2 2 2" : "M14 10l2 2-2 2"} />
+    </svg>
+  );
+}
+
 export function KeyIcon({ size = 16, ...p }: IconProps) {
   return (
     <svg {...base(size, p)}>

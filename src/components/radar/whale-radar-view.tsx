@@ -16,6 +16,19 @@ import { WhaleHistoryChart } from "./whale-history-chart";
 import { WhaleKpis } from "./whale-kpis";
 import { OceanLegend, WhaleOcean } from "./whale-ocean";
 
+/**
+ * Ocean beside a right column. The column scales from 380px to 440px with the
+ * content width and the ocean takes the rest; below ~960px of content they
+ * stack. Sizes follow the content box, so they also adjust when the sidebar is hidden.
+ */
+function OceanSplit({ children }: { children: ReactNode }) {
+  return (
+    <section className="@container">
+      <div className="grid gap-[22px] @min-[960px]:grid-cols-[minmax(0,1fr)_clamp(380px,24cqw,440px)] @min-[960px]:items-start">{children}</div>
+    </section>
+  );
+}
+
 /** Ocean panel + right column (selected coin, extremes, KPIs). */
 function RadarSection({
   coins,
@@ -36,12 +49,12 @@ function RadarSection({
   }, [coins, selected]);
 
   return (
-    <section className="flex flex-wrap gap-[22px]">
-      <div className="relative flex min-w-0 flex-[3_1_560px] flex-col gap-1.5 overflow-hidden rounded-[18px] border border-iris/13 bg-panel p-3.5">
+    <OceanSplit>
+      <div className="relative flex min-w-0 flex-col gap-1.5 overflow-hidden rounded-[18px] border border-iris/13 bg-panel p-3.5">
         <WhaleOcean coins={coins} selected={current?.symbol ?? null} onSelect={setSelected} sample={sample} />
         <OceanLegend />
       </div>
-      <div className="flex min-w-0 flex-[1_1_340px] flex-col gap-4">
+      <div className="flex min-w-0 flex-col gap-4">
         {current ? (
           <SelectedCoinCard rc={current} onOpen={() => router.push(`/coin/${encodeURIComponent(current.symbol)}`)} />
         ) : (
@@ -50,7 +63,7 @@ function RadarSection({
         <ExtremesPanel coins={coins} onSelect={setSelected} />
         {kpis}
       </div>
-    </section>
+    </OceanSplit>
   );
 }
 
@@ -95,11 +108,11 @@ export function WhaleRadarView({ initialSel }: { initialSel: string | null }) {
     return (
       <>
         {header}
-        <section className="flex flex-wrap gap-[22px]">
-          <div className="flex min-w-0 flex-[3_1_560px] flex-col gap-1.5 rounded-[18px] border border-iris/13 bg-panel p-3.5">
+        <OceanSplit>
+          <div className="flex min-w-0 flex-col gap-1.5 rounded-[18px] border border-iris/13 bg-panel p-3.5">
             <DeckSkeleton className="h-[max(520px,calc(100vh-196px))] rounded-[12px]" />
           </div>
-          <div className="flex min-w-0 flex-[1_1_340px] flex-col gap-4">
+          <div className="flex min-w-0 flex-col gap-4">
             <DeckSkeleton className="h-[420px] rounded-[18px]" />
             <DeckSkeleton className="h-[190px] rounded-[18px]" />
             <div className="grid grid-cols-2 gap-2">
@@ -108,7 +121,7 @@ export function WhaleRadarView({ initialSel }: { initialSel: string | null }) {
               ))}
             </div>
           </div>
-        </section>
+        </OceanSplit>
       </>
     );
   }

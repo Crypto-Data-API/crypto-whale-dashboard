@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useMemo } from "react";
-import { WhaleMark } from "@/components/deck/icons";
+import { useEffect, useMemo, useState } from "react";
+import { SidebarIcon, WhaleMark } from "@/components/deck/icons";
+import { useSettingsHydrated } from "@/hooks/use-hydrated";
 import { useNow } from "@/hooks/use-now";
 import { cn } from "@/lib/utils";
+import { useSettings } from "@/stores/settings";
 import { useStream } from "@/stores/stream";
 import { CoinSearch } from "./coin-search";
 import { NAV_ITEMS, isActive } from "./nav";
@@ -13,6 +15,34 @@ import { ApiUsage, KeySourceLine, LiveIndicator, TierPill } from "./status-widge
 
 const WHALE_TYPES = new Set(["whale_position", "whale_transfer", "liquidation"]);
 const ALERT_WINDOW_MS = 10 * 60_000;
+
+const SIDEBAR_ID = "app-sidebar";
+
+/** Hides or shows the desktop sidebar. `floating` is the copy pinned top-left while the sidebar is hidden. */
+export function SidebarToggle({ floating = false }: { floating?: boolean }) {
+  const hidden = useSettings((s) => s.sidebarHidden);
+  const setHidden = useSettings((s) => s.setSidebarHidden);
+  const label = hidden ? "Show sidebar" : "Hide sidebar";
+  return (
+    <button
+      type="button"
+      onClick={() => setHidden(!hidden)}
+      title={label}
+      aria-label={label}
+      aria-controls={SIDEBAR_ID}
+      aria-expanded={!hidden}
+      className={cn(
+        "grid shrink-0 cursor-pointer place-items-center rounded-[10px] border text-ink-soft transition-colors hover:border-long/40 hover:text-long",
+        floating
+          ? "fixed top-[30px] left-3.5 z-40 hidden size-9 border-iris/16 bg-[rgba(6,7,14,.85)] backdrop-blur-[12px] lg:grid"
+          : // Tucked into the rail's top-right corner, level with the logo, clear of the brand text.
+            "absolute top-7 right-1 size-[26px] border-transparent hover:bg-iris/8",
+      )}
+    >
+      <SidebarIcon size={floating ? 18 : 16} open={!hidden} />
+    </button>
+  );
+}
 
 export function Brand({ onNavigate }: { onNavigate?: () => void }) {
   return (
@@ -121,10 +151,31 @@ export function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
+/** Desktop rail (lg and up). Slides shut when hidden; the page reflows into the freed width. */
 export function Sidebar() {
+  const hidden = useSettings((s) => s.sidebarHidden);
+  const hydrated = useSettingsHydrated();
+  // Only slide on user toggles, not when the saved state is applied on load.
+  const [animate, setAnimate] = useState(false);
+  useEffect(() => {
+    if (!hydrated) return;
+    const id = requestAnimationFrame(() => setAnimate(true));
+    return () => cancelAnimationFrame(id);
+  }, [hydrated]);
   return (
-    <aside className="sticky top-0 z-40 hidden h-dvh w-[236px] shrink-0 flex-col overflow-y-auto border-r border-iris/10 bg-[rgba(6,7,14,.75)] px-3.5 py-[18px] backdrop-blur-[12px] lg:flex">
-      <SidebarBody />
+    <aside
+      id={SIDEBAR_ID}
+      inert={hidden}
+      className={cn(
+        "sticky top-0 z-40 hidden h-dvh shrink-0 overflow-hidden bg-[rgba(6,7,14,.75)] backdrop-blur-[12px] lg:block",
+        hidden ? "w-0 border-r-0" : "w-[236px] border-r border-iris/10",
+        animate && "transition-[width] duration-200 ease-out motion-reduce:transition-none",
+      )}
+    >
+      <div className="relative flex h-full w-[236px] flex-col overflow-y-auto px-3.5 py-[18px]">
+        <SidebarToggle />
+        <SidebarBody />
+      </div>
     </aside>
   );
 }

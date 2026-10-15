@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { MenuIcon, WhaleMark } from "@/components/deck/icons";
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Sidebar, SidebarBody } from "./sidebar";
+import { cn } from "@/lib/utils";
+import { useSettings } from "@/stores/settings";
+import { Sidebar, SidebarBody, SidebarToggle } from "./sidebar";
 import { LiveIndicator, TierPill } from "./status-widgets";
 
 /** Top bar shown below the lg breakpoint: menu button (drawer), logo, stream + tier. */
@@ -47,12 +50,25 @@ function MobileBar() {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
+  // The WhaleDesk ocean uses the full browser width; the other pages stay capped for readable tables.
+  const fullWidth = usePathname() === "/";
+  const sidebarHidden = useSettings((s) => s.sidebarHidden);
   return (
     <div className="flex min-h-dvh">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <MobileBar />
-        <main className="mx-auto flex w-full max-w-[1680px] min-w-0 flex-col gap-[22px] px-4 py-5 sm:p-7">{children}</main>
+        {sidebarHidden && <SidebarToggle floating />}
+        <main
+          className={cn(
+            "mx-auto flex w-full min-w-0 flex-col gap-[22px] px-4 py-5 sm:p-7",
+            fullWidth ? "max-w-none" : "max-w-[1680px]",
+            // Room for the floating "show sidebar" button.
+            sidebarHidden && "lg:pl-[68px]",
+          )}
+        >
+          {children}
+        </main>
       </div>
     </div>
   );

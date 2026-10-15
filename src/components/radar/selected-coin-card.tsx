@@ -63,10 +63,10 @@ export function SelectedCoinCard({ rc, onOpen }: { rc: RadarCoin; onOpen: () => 
           <div className="flex items-baseline gap-2.5">
             <span className="font-display text-[24px] font-bold">{rc.symbol}</span>
           </div>
-          <div className="flex items-baseline gap-2.5 font-mono">
+          <div className="flex flex-wrap items-baseline gap-x-2.5 font-mono">
             <span className="text-[17px] text-ink">{fmtPrice(c.mark)}</span>
             {chg !== null && (
-              <span className="text-[12px]" style={{ color: chg >= 0 ? DECK.long : DECK.short }}>
+              <span className="text-[12px] whitespace-nowrap" style={{ color: chg >= 0 ? DECK.long : DECK.short }}>
                 {fmtPct(chg, { digits: 2, sign: true })} 24h
               </span>
             )}

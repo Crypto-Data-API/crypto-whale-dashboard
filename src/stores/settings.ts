@@ -70,6 +70,8 @@ export interface SettingsState {
   refresh: RefreshSettings;
   thresholds: Thresholds;
   feed: FeedPrefs;
+  /** Desktop sidebar hidden (lg and up); the mobile drawer is unaffected. */
+  sidebarHidden: boolean;
 
   setApiKey: (key: string, info: KeyInfo | null) => void;
   setKeyInfo: (info: KeyInfo | null) => void;
@@ -81,6 +83,7 @@ export interface SettingsState {
   setThreshold: (type: EventType, value: number) => void;
   setFeed: (patch: Partial<FeedPrefs>) => void;
   setFeedType: (type: EventType, on: boolean) => void;
+  setSidebarHidden: (hidden: boolean) => void;
   importSettings: (data: unknown) => { ok: boolean; message: string };
   resetPreferences: () => void;
 }
@@ -150,6 +153,7 @@ export const useSettings = create<SettingsState>()(
       refresh: DEFAULT_REFRESH,
       thresholds: DEFAULT_THRESHOLDS,
       feed: DEFAULT_FEED,
+      sidebarHidden: false,
 
       setApiKey: (key, info) => set({ apiKey: key.trim(), keyInfo: info, demoMode: false }),
       setKeyInfo: (info) => set({ keyInfo: info }),
@@ -162,6 +166,7 @@ export const useSettings = create<SettingsState>()(
         set({ thresholds: { ...get().thresholds, [type]: Number.isFinite(value) && value >= 0 ? value : 0 } }),
       setFeed: (patch) => set({ feed: { ...get().feed, ...patch } }),
       setFeedType: (type, on) => set({ feed: { ...get().feed, types: { ...get().feed.types, [type]: on } } }),
+      setSidebarHidden: (hidden) => set({ sidebarHidden: hidden }),
 
       importSettings: (data) => {
         if (!data || typeof data !== "object") return { ok: false, message: "File is not a JSON object." };
@@ -214,6 +219,7 @@ export const useSettings = create<SettingsState>()(
         refresh: s.refresh,
         thresholds: s.thresholds,
         feed: s.feed,
+        sidebarHidden: s.sidebarHidden,
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<SettingsState>;
@@ -231,6 +237,7 @@ export const useSettings = create<SettingsState>()(
           refresh: clampRefresh(p.refresh ?? {}, current.refresh),
           thresholds: sanitizeThresholds(p.thresholds, current.thresholds),
           feed: sanitizeFeed(p.feed, current.feed),
+          sidebarHidden: typeof p.sidebarHidden === "boolean" ? p.sidebarHidden : current.sidebarHidden,
         };
       },
     },
