@@ -15,20 +15,21 @@ For live data, run the app yourself with a key. See [Get a key and run it live](
 
 ## Screenshots
 
-| WhaleDesk | Whale Exposure |
-|---|---|
-| ![WhaleDesk: every coin is a whale; long-leaning whales swim near the surface, short-leaning ones dive deep](docs/screenshots/radar.jpg) | ![Whale Exposure: sortable table of whale gross, long/short, net and 30-day percentile per coin](docs/screenshots/exposure.jpg) |
-| Every coin is a whale, swimming at a depth set by how far whales lean long or short against its 30-day norm. | Every coin's whale book in one sortable table. |
+**WhaleDesk**
 
-| Whale Alerts | Coin chart |
-|---|---|
-| ![Whale Alerts: live feed of whale positions, liquidations, OI and price moves](docs/screenshots/alerts.jpg) | ![Coin chart: DOGE candles with whale trades, liquidations and a CVD pane](docs/screenshots/coin.jpg) |
-| Live feed of whale positions, transfers, liquidations, OI and price moves. | Candles with whale buys and sells, liquidations and exchange flows, plus CVD. |
+![WhaleDesk: every coin is a whale; long-leaning whales swim near the surface, short-leaning ones dive deep](docs/screenshots/radar.jpg)
 
-| Whale Accounts |
-|---|
-| ![Whale Accounts: tracked Hyperliquid whale wallets with style, PnL and positions](docs/screenshots/accounts.jpg) |
-| Tracked Hyperliquid whale wallets with trading style, PnL and open positions. |
+Every coin is a whale, swimming at a depth set by how far whales lean long or short against its 30-day norm.
+
+| Whale Exposure | Whale Alerts |
+|---|---|
+| ![Whale Exposure: sortable table of whale gross, long/short, net and 30-day percentile per coin](docs/screenshots/exposure.jpg) | ![Whale Alerts: live feed of whale positions, liquidations, OI and price moves](docs/screenshots/alerts.jpg) |
+| Every coin's whale book in one sortable table. | Live feed of whale positions, transfers, liquidations, OI and price moves. |
+
+| Coin chart | Whale Accounts |
+|---|---|
+| ![Coin chart: DOGE candles with whale trades, liquidations and a CVD pane](docs/screenshots/coin.jpg) | ![Whale Accounts: tracked Hyperliquid whale wallets with style, PnL and positions](docs/screenshots/accounts.jpg) |
+| Candles with whale buys and sells, liquidations and exchange flows, plus CVD. | Tracked Hyperliquid whale wallets with trading style, PnL and open positions. |
 
 ## What it does
 
